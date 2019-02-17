@@ -36,7 +36,22 @@
 ;if statement
 (define if-statement
   (lambda (expression state)
-    (expression)))
+    (if (conditional expression)
+        (M_value((then-statement expression) state expression))
+        (if (not(null? (optional-else-statement expression)))
+            (M_value (optional-else-statement expression) state) '()))))
+
+(define conditional
+  (lambda (condition)
+    (car (cdr condition))))
+
+(define then-statement
+  (lambda (then)
+    (car (cdr (cdr then)))))
+
+(define optional-else-statement
+  (lambda (else)
+    (car (cdr (cdr (cdr else))))))
 
 ;while statement
 (define while-statement

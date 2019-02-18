@@ -11,35 +11,39 @@
 ;
 (define M_value
   (lambda (expression state)
-    (cond
-      ((eq? (operator expression) '+)       (add expression state))
-      ((eq? (and ((operator expression) '-) (null? term2))) (unary expression state))
-      ((eq? (and ((operator expression) '-) (not (null? term2)))) (subtract expression state))
-      ((eq? (operator expression) '*)       (add expression state))
-      ((eq? (operator expression) '/)       (divide expression state))
-      ((eq? (operator expression) '%)       (modulus-statement expression state))
-      ((eq? (operator expression) '==)      (equals expression state))
-      ((eq? (operator expression) '!=)      (not-equals expression state))
-      ((eq? (operator expression) '<)       (less-than expression state))
-      ((eq? (operator expression) '>)       (greater-than expression state))
-      ((eq? (operator expression) '<=)      (less-or-equal expression state))
-      ((eq? (operator expression) '>=)      (greater-or-equal expression state))
-      ((eq? (operator expression) '&&)      (and expression state))
-      ((eq? (operator expression) '||)      (or expression state))
-      ((eq? (operator expression) '!)       (not expression state))
-      ((eq? (operator expression) 'if)      (if-statement expression state))
-      ((eq? (operator expression) 'while)   (while-statement expression state))
-      ((eq? (operator expression) '=)       (assign expression state))
-      ((eq? (operator expression) 'var)     (declare-variable expression state))
-      ((eq? (operator expression) 'return)  (return expression state)))))
+    (cond      
+      ((number? expression)                                      expression)
+      ((eq? (operator expression) '+)                            (add-statement expression state))
+      ((and (eq? (operator expression) '-)  (null? term2))       (unary-statement expression state))
+      ((and (eq? (operator expression) '-)  (not (null? term2))) (subtract-statement expression state))
+      ((eq? (operator expression) '*)                            (multiply-statement expression state))
+      ((eq? (operator expression) '/)                            (divide-statement expression state))
+      ((eq? (operator expression) '%)                            (modulus-statement expression state))
+      ((eq? (operator expression) '==)                           (equals-statement expression state))
+      ((eq? (operator expression) '!=)                           (not-equals-statement expression state))
+      ((eq? (operator expression) '<)                            (less-than expression state))
+      ((eq? (operator expression) '>)                            (greater-than expression state))
+      ((eq? (operator expression) '<=)                           (less-or-equal expression state))
+      ((eq? (operator expression) '>=)                           (greater-or-equal expression state))
+      ((eq? (operator expression) '&&)                           (and-statement expression state))
+      ((eq? (operator expression) '||)                           (or-statement expression state))
+      ((eq? (operator expression) '!)                            (not-statement expression state))
+      ((eq? (operator expression) 'if)                           (if-statement expression state))
+      ((eq? (operator expression) 'while)                        (while-statement expression state))
+      ((eq? (operator expression) '=)                            (assign-statement expression state))
+      ((eq? (operator expression) 'var)                          (declare-variable expression state))
+      ((eq? (operator expression) 'return)                       (return expression state))
+      ((number? (operator expression))                           (operator expression))
+      ((list? (operator expression))                             (M_value (operator expression) state))
+      (else                                                      (M_state expression state)))))
 
-;
+;state
 (define M_state
   (lambda (expression state)
-    (state)))
+    state))
 
 ;assignment
-(define assign
+(define assign-statement
   (lambda (expression state)
     (expression)))
 
@@ -51,7 +55,7 @@
 ;return
 (define return
   (lambda (expression state)
-    (M_value expression state)))
+    (M_value (term1 expression) state)))
 
 ;if statement
 (define if-statement
@@ -63,15 +67,15 @@
 
 (define conditional
   (lambda (condition)
-    (car (cdr condition))))
+    (cadr condition)))
 
 (define then-statement
   (lambda (then)
-    (car (cdr (cdr then)))))
+    (caddr then)))
 
 (define optional-else-statement
   (lambda (else)
-    (car (cdr (cdr (cdr else))))))
+    (cadddr else)))
 
 ;while statement
 (define while-statement
@@ -79,22 +83,22 @@
     (expression)))
 
 ;addition
-(define add
+(define add-statement
   (lambda (expression state)
     (+ (M_value (term1 expression) state) (M_value (term2 expression) state))))
 
 ;subtraction
-(define subtract
+(define subtract-statement
   (lambda (expression state)
     (- (M_value (term1 expression) state) (M_value (term2 expression) state))))
 
 ;multiply
-(define multiply
+(define multiply-statement
   (lambda (expression state)
     (* (M_value (term1 expression) state) (M_value (term2 expression) state))))
 
-;quotient
-(define divide
+;divide
+(define divide-statement
   (lambda (expression state)
     (quotient (M_value (term1 expression) state) (M_value (term2 expression) state))))
 
@@ -104,7 +108,7 @@
     (remainder (M_value (term1 expression) state) (M_value (term2 expression) state))))
 
 ;unary 
-(define unary
+(define unary-statement
   (lambda (expression state)
     (* -1 (M_value (term1 expression) state))))
 
@@ -124,14 +128,14 @@
     (caddr expression)))
 
 ;equals
-(define equals
+(define equals-statement
   (lambda (expression state)
     (eq? (M_value((term1 expression) state))(M_value((term2 expression) state)))))
 
 ;notequals
-(define not-equals
+(define not-equals-statement
   (lambda (expression state)
-    (not (equals expression state))))
+    (not (equals-statement expression state))))
 
 ;less than
 (define less-than
@@ -146,24 +150,24 @@
 ;less than or equal to
 (define less-or-equal
   (lambda (expression state)
-    (or (equals expression state) (less-than expression state))))
+    (or (equals-statement expression state) (less-than expression state))))
 
 ;greater than or equal to
 (define greater-or-equal
   (lambda (expression state)
-    (or (equals expression state) (greater-than expression state))))
+    (or (equals-statement expression state) (greater-than expression state))))
 
 ; and
-(define and
+(define and-statement
   (lambda (expression state)
     (and (M_value (term1 expression) state) (M_value (term2 expression) state))))
 
 ;or
-(define or
+(define or-statement
   (lambda (expression state)
     (or (M_value (term1 expression) state) (M_value (term2 expression) state))))
 
 ;not
-(define not
+(define not-statement
   (lambda (expression state)
     (not (M_value (term1 expression) state))))

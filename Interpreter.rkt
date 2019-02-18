@@ -11,7 +11,27 @@
 ;
 (define M_value
   (lambda (expression state)
-    (expression)))
+    (cond
+      ((eq? (operator expression) '+)       (add expression state))
+      ((eq? (and ((operator expression) '-) (null? term2))) (unary expression state))
+      ((eq? (and ((operator expression) '-) (not (null? term2)))) (subtract expression state))
+      ((eq? (operator expression) '*)       (add expression state))
+      ((eq? (operator expression) '/)       (divide expression state))
+      ((eq? (operator expression) '%)       (modulus-statement expression state))
+      ((eq? (operator expression) '==)      (equals expression state))
+      ((eq? (operator expression) '!=)      (not-equals expression state))
+      ((eq? (operator expression) '<)       (less-than expression state))
+      ((eq? (operator expression) '>)       (greater-than expression state))
+      ((eq? (operator expression) '<=)      (less-or-equal expression state))
+      ((eq? (operator expression) '>=)      (greater-or-equal expression state))
+      ((eq? (operator expression) '&&)      (and expression state))
+      ((eq? (operator expression) '||)      (or expression state))
+      ((eq? (operator expression) '!)       (not expression state))
+      ((eq? (operator expression) 'if)      (if expression state))
+      ((eq? (operator expression) 'while)   (while expression state))
+      ((eq? (operator expression) '=)       (assign expression state))
+      ((eq? (operator expression) 'var)     (declare-variable expression state))
+      ((eq? (operator expression) 'return)  (return expression state)))))
 
 ;
 (define M_state

@@ -12,45 +12,65 @@
 (define M_value
   (lambda (expression state)
     (cond      
-      ((number? expression)                                      expression)
-      ((eq? (operator expression) '+)                            (add-statement expression state))
-      ((and (eq? (operator expression) '-)  (null? term2))       (unary-statement expression state))
-      ((and (eq? (operator expression) '-)  (not (null? term2))) (subtract-statement expression state))
-      ((eq? (operator expression) '*)                            (multiply-statement expression state))
-      ((eq? (operator expression) '/)                            (divide-statement expression state))
-      ((eq? (operator expression) '%)                            (modulus-statement expression state))
-      ((eq? (operator expression) '==)                           (equals-statement expression state))
-      ((eq? (operator expression) '!=)                           (not-equals-statement expression state))
-      ((eq? (operator expression) '<)                            (less-than expression state))
-      ((eq? (operator expression) '>)                            (greater-than expression state))
-      ((eq? (operator expression) '<=)                           (less-or-equal expression state))
-      ((eq? (operator expression) '>=)                           (greater-or-equal expression state))
-      ((eq? (operator expression) '&&)                           (and-statement expression state))
-      ((eq? (operator expression) '||)                           (or-statement expression state))
-      ((eq? (operator expression) '!)                            (not-statement expression state))
-      ((eq? (operator expression) 'if)                           (if-statement expression state))
-      ((eq? (operator expression) 'while)                        (while-statement expression state))
-      ((eq? (operator expression) '=)                            (assign-statement expression state))
-      ((eq? (operator expression) 'var)                          (declare-variable expression state))
-      ((eq? (operator expression) 'return)                       (return expression state))
-      ((number? (operator expression))                           (operator expression))
-      ((list? (operator expression))                             (M_value (operator expression) state))
-      (else                                                      (M_state expression state)))))
+      ((number? expression)                                       expression)
+      ((eq? (operator expression) '+)                             (add-statement expression state))
+      ((and (eq? (operator expression) '-)  (null? term2))        (unary-statement expression state))
+      ((eq? (operator expression) '-)                             (subtract-statement expression state))
+      ((eq? (operator expression) '*)                             (multiply-statement expression state))
+      ((eq? (operator expression) '/)                             (divide-statement expression state))
+      ((eq? (operator expression) '%)                             (modulus-statement expression state))
+      ((eq? (operator expression) '==)                            (equals-statement expression state))
+      ((eq? (operator expression) '!=)                            (not-equals-statement expression state))
+      ((eq? (operator expression) '<)                             (less-than expression state))
+      ((eq? (operator expression) '>)                             (greater-than expression state))
+      ((eq? (operator expression) '<=)                            (less-or-equal expression state))
+      ((eq? (operator expression) '>=)                            (greater-or-equal expression state))
+      ((eq? (operator expression) '&&)                            (and-statement expression state))
+      ((eq? (operator expression) '||)                            (or-statement expression state))
+      ((eq? (operator expression) '!)                             (not-statement expression state))
+      ((eq? (operator expression) 'if)                            (if-statement expression state))
+      ((eq? (operator expression) 'while)                         (while-statement expression state))
+      ((eq? (operator expression) '=)                             (assign-statement expression state))
+      ((eq? (operator expression) 'var)                           (add-variable expression state))
+      ((eq? (operator expression) 'return)                        (return expression state))
+      ((and (list? (operator expression)) (null? (cdr expression) (M_value (car expression) state))))
+      ((list? (operator expression))                              (M_value (cdr expression) (M_state (car expression) state)))
+      (else                                                       (M_state expression state)))))
+; call on rest of list.
 
 ;state
 (define M_state
   (lambda (expression state)
-    state))
+    (cond
+      ((eq? (operator expression) 'var) (add-variable expression state))
+      ((eq? (operator expression) '=)   (assign-statement expression state))
+      
+      (else                             state))))
+;add variable to state
+(define add-variable
+  (lambda (expression state)
+    (if (null? (term2 expression))
+        (list (append (car state) (M_value (term1 expression) state) (append (cdr state) 0)))
+        (list (append (car state) (M_value (term1 expression) state) (append (cdr state) (M_value (term2 expression) state)))))))
 
 ;assignment
 (define assign-statement
   (lambda (expression state)
-    (expression)))
+    (cond
+      [(null? (state-names state))                        (error "Undeclared variable")]
+      [(eq? (car (state-names state)) (term1 expression))
+       (list (state-names state) (cons (term2 expression) (cdr (state-values state))))]
+      [else (assign-statement expression (list (cdr (state-names state)) (cdr (state-values state))))
 
-;variable declaration
-(define declare-variable
-  (lambda (expression state)
-    (expression)))
+;state names
+(define state-names
+  (lambda (state)
+    (car state)))
+
+;state values
+(define state-values
+  (lambda (state)
+    (cadr state)))
 
 ;return
 (define return

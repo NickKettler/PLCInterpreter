@@ -53,16 +53,21 @@
         (list (append (car state) (M_value (term1 expression) state) (append (cdr state) 0)))
         (list (append (car state) (M_value (term1 expression) state) (append (cdr state) (M_value (term2 expression) state)))))))
 
-;assignment
 (define assign-statement
   (lambda (expression state)
+    (assign-statement-cps expression state (lambda(v) v))))
+
+
+;assignment
+(define assign-statement-cps
+  (lambda (expression state return)
     (cond
       [(null? (state-names state))                        (error "Undeclared variable")]
       [(eq? (car (state-names state)) (term1 expression))
-       (list (state-names state) (cons (term2 expression) (cdr (state-values state))))]
-      [else (assign-statement expression (list (cdr (state-names state)) (cdr (state-values state))))
-
-;state names
+       (return (list (state-names state) (cons (term2 expression) (cdr (state-values state)))))]
+      [else (assign-statement-cps expression (list (cdr (state-names state)) (cdr (state-values state)))
+                                  (lambda(v) (return (list (cons (car (state-names state)) (state-names v))
+                                                     (cons (car (state-values state)) (state-values v))))))])))
 (define state-names
   (lambda (state)
     (car state)))

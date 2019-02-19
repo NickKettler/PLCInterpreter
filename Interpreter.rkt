@@ -36,7 +36,6 @@
       ((and (list? (operator expression)) (null? (cdr expression))) (M_value (car expression) state))
       ((list? (operator expression))                                (M_value (cdr expression) (M_state (car expression) state)))
       (else                                                         (retrieve-value expression state)))))
-; call on rest of list.
 
 ;state
 (define M_state
@@ -45,11 +44,12 @@
       ((eq? (operator expression) 'var) (add-variable expression state))
       ((eq? (operator expression) '=)   (assign-statement expression state))
       (else                             state))))
+
 ;add variable to state
 (define add-variable
   (lambda (expression state)
     (if (null? (cddr expression))
-        (list (append (state-names state) (list (term1 expression))) (append (state-values state) 0))
+        (list (append (state-names state) (list (term1 expression))) (append (state-values state) '(0)))
         (list (append (state-names state) (list (term1 expression))) (append (state-values state) (list (M_value (term2 expression) state)))))))
 
 ;find a variable's value
@@ -60,10 +60,12 @@
       ((eq? (car (state-names state)) expression) (car (state-values state)))
       (else (retrieve-value expression (list (cdr (state-names state)) (cdr (state-values state))))))))
 
-
+;assignment
 (define assign-statement
   (lambda (expression state)
-    (assign-statement-cps expression state (lambda(v) v))))
+    (if(number? (term2 expression))
+       (assign-statement-cps expression state (lambda(v) v))
+       (assign-statement-cps (list (operator expression) (term1 expression) (M_value (term2 expression) state)) state (lambda(v) v)))))
 
 
 ;assignment
@@ -76,7 +78,7 @@
       [else (assign-statement-cps expression (list (cdr (state-names state)) (cdr (state-values state)))
                                   (lambda(v) (return (list (cons (car (state-names state)) (state-names v))
                                                      (cons (car (state-values state)) (state-values v))))))])))
-                                                     
+;state names                                    
 (define state-names
   (lambda (state)
     (car state)))
@@ -153,7 +155,9 @@
 ;operator
 (define operator
   (lambda (expression)
-    (car expression)))
+    (if (list? expression)
+        (car expression)
+        expression)))
 
 ;term1
 (define term1

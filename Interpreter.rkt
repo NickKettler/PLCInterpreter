@@ -64,6 +64,7 @@
       ((eq? (operator expression) '=)     (assign-statement expression state))
       ((eq? (operator expression) 'if)    (if-statement expression state))
       ((eq? (operator expression) 'while) (while-statement expression state))
+      ((eq? (operator expression) 'begin) (M_value (cdr expression) (enter-block state)))
       (else                               state))))
 
 ;default state
@@ -92,6 +93,15 @@
   (lambda (layer state)
     (push layer (pop state))))
 
+;enter new block
+(define enter-block
+  (lambda (state)
+    (push (empty-layer) state)))
+
+;to-layer takes a list of names and a list of values and makes it a layer
+(define to-layer
+  (lambda (names values)
+    (list names values)))
 
 ;add variable to state
 (define add-variable
@@ -106,10 +116,11 @@
 (define retrieve-value
   (lambda (expression state)
     (cond
-      ((null? (top-names state)) (error "undeclared variable"))
+      ((and (null? (top-names state)) (null? (pop state)))                                    (error "undeclared variable"))
+      ((null? (top-names state))                                                              (retrieve-value expression (pop state)))
       ((and (eq? (car (top-names state)) expression) (not (eq? (car (top-values state)) '?))) (car (top-values state)))
-      ((and (eq? (car (top-names state)) expression) (eq? (car (top-values state)) '?))       (error "Undeclared variable"))
-      (else (retrieve-value expression (list (cdr (top-names state))                            (cdr (top-values state))))))))
+      ((and (eq? (car (top-names state)) expression) (eq? (car (top-values state)) '?))       (error "No assigned value"))
+      (else (retrieve-value expression (cons (list (cdr (top-names state)) (cdr (top-values state))) (cdr state)))))))
 
 ;assignment
 (define assign-statement
@@ -148,7 +159,7 @@
     (cond
       ((list? (term1 expression))   (M_value (term1 expression) state))
       ((number? (term1 expression)) (M_value (term1 expression) state))
-      (else                         (retrieve-value (term1 expression) state))))) 
+      (else                         (retrieve-value (term1 expression) state)))))
 
 ;if statement
 (define if-statement

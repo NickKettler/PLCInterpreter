@@ -1,6 +1,11 @@
 #lang racket
+;Nicholas Kettler
+;Martin Peters
+;Group 34
+;EECS 345
 
-; load simpleParser
+
+;load simpleParser
 (require "simpleParser.rkt")
 
 ;returns the value of the code in the filename
@@ -67,7 +72,9 @@
   (lambda (expression state)
     (if (null? (cddr expression))
         (list (append (state-names state) (list (term1 expression))) (append (state-values state) '(?)))
-        (list (append (state-names state) (list (term1 expression))) (append (state-values state) (list (M_value (term2 expression) state)))))))
+        (list (append (state-names state)
+                      (list (term1 expression))) (append (state-values state)
+                                                         (list (M_value (term2 expression) state)))))))
 
 ;find a variable's value
 (define retrieve-value
@@ -83,7 +90,9 @@
   (lambda (expression state)
     (if(number? (term2 expression))
        (assign-statement-cps expression state (lambda(v) v))
-       (assign-statement-cps (list (operator expression) (term1 expression) (M_value (term2 expression) state)) state (lambda(v) v)))))
+       (assign-statement-cps (list (operator expression)
+                                   (term1 expression)
+                                   (M_value (term2 expression) state)) state (lambda(v) v)))))
 
 
 ;assignment
@@ -91,8 +100,10 @@
   (lambda (expression state return)
     (cond
       [(null? (state-names state))                        (error "Undeclared variable")]
-      [(eq? (car (state-names state)) (term1 expression)) (return (list (state-names state) (cons (term2 expression) (cdr (state-values state)))))]
-      [else                                               (assign-statement-cps expression (list (cdr (state-names state)) (cdr (state-values state)))
+      [(eq? (car (state-names state)) (term1 expression)) (return (list (state-names state)
+                                                                        (cons (term2 expression) (cdr (state-values state)))))]
+      [else                                               (assign-statement-cps expression (list (cdr (state-names state))
+                                                                                                 (cdr (state-values state)))
                                                             (lambda(v) (return (list (cons (car (state-names state)) (state-names v))
                                                             (cons (car (state-values state)) (state-values v))))))])))
 ;state names                                    
@@ -118,7 +129,7 @@
   (lambda (expression state)
     (if (M_value (conditional expression) state)
         (M_value (then-statement expression) state)
-        (if (null? (cdddr expression))
+        (if (not (null? (cdddr expression)))
             (M_value (optional-else-statement expression) state)
             state))))
 

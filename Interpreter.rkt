@@ -52,7 +52,6 @@
       ((eq? (operator expression) '=)                                (assign-statement expression state))
       ((eq? (operator expression) 'var)                              (add-variable expression state))
       ((eq? (operator expression) 'return)                           (return expression state))
-      ((eq? (operator expression) 'begin)                            (M_value (cdr expression) (enter-block state)))
       ((and (list? (operator expression)) (null? (cdr expression)))  (M_value (car expression) state))
       ((list? (operator expression))                                 (M_value (cdr expression) (M_state (car expression) state)))
       (else                                                          (retrieve-value expression state)))))
@@ -65,6 +64,7 @@
       ((eq? (operator expression) '=)     (assign-statement expression state))
       ((eq? (operator expression) 'if)    (if-statement expression state))
       ((eq? (operator expression) 'while) (while-statement expression state))
+      ((eq? (operator expression) 'begin) (M_value (cdr expression) (enter-block state)))
       (else                               state))))
 
 ;default state
@@ -98,6 +98,11 @@
   (lambda (state)
     (push (empty-layer) state)))
 
+;to-layer takes a list of names and a list of values and makes it a layer
+(define to-layer
+  (lambda (names values)
+    (list names values)))
+
 ;add variable to state
 (define add-variable
   (lambda (expression state)
@@ -115,7 +120,7 @@
       ((null? (top-names state))                                                              (retrieve-value expression (pop state)))
       ((and (eq? (car (top-names state)) expression) (not (eq? (car (top-values state)) '?))) (car (top-values state)))
       ((and (eq? (car (top-names state)) expression) (eq? (car (top-values state)) '?))       (error "No assigned value"))
-      (else (retrieve-value expression (list (cdr (top-names state)) (cdr (top-values state))))))))
+      (else (retrieve-value expression (cons (list (cdr (top-names state)) (cdr (top-values state))) (cdr state)))))))
 
 ;assignment
 (define assign-statement

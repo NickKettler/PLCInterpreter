@@ -69,8 +69,12 @@
 ;default state
 (define default-state
   (lambda ()
-    '(()())))
+    (list (empty-layer))))
 
+;empty layer
+(define empty-layer
+  (lambda ()
+    '(()())))
 
 ;pop layer
 (define pop
@@ -93,19 +97,19 @@
 (define add-variable
   (lambda (expression state)
     (if (null? (cddr expression))
-        (list (append (state-names state) (list (term1 expression))) (append (state-values state) '(?)))
-        (list (append (state-names state)
-                      (list (term1 expression))) (append (state-values state)
-                                                         (list (M_value (term2 expression) state)))))))
+        (modify-top (list (append (top-names state) (list (term1 expression))) (append (top-values state) '(?))) state)
+        (modify-top (list (append (top-names state)
+                                  (list (term1 expression))) (append (top-values state)
+                                                                     (list (M_value (term2 expression) state)))) state))))
 
 ;find a variable's value
 (define retrieve-value
   (lambda (expression state)
     (cond
-      ((null? (state-names state)) (error "undeclared variable"))
-      ((and (eq? (car (state-names state)) expression) (not (eq? (car (state-values state)) '?))) (car (state-values state)))
-      ((and (eq? (car (state-names state)) expression) (eq? (car (state-values state)) '?))       (error "Undeclared variable"))
-      (else (retrieve-value expression (list (cdr (state-names state))                            (cdr (state-values state))))))))
+      ((null? (top-names state)) (error "undeclared variable"))
+      ((and (eq? (car (top-names state)) expression) (not (eq? (car (top-values state)) '?))) (car (top-values state)))
+      ((and (eq? (car (top-names state)) expression) (eq? (car (top-values state)) '?))       (error "Undeclared variable"))
+      (else (retrieve-value expression (list (cdr (top-names state))                            (cdr (top-values state))))))))
 
 ;assignment
 (define assign-statement
@@ -121,22 +125,22 @@
 (define assign-statement-cps
   (lambda (expression state return)
     (cond
-      [(null? (state-names state))                        (error "Undeclared variable")]
-      [(eq? (car (state-names state)) (term1 expression)) (return (list (state-names state)
-                                                                        (cons (term2 expression) (cdr (state-values state)))))]
-      [else                                               (assign-statement-cps expression (list (cdr (state-names state))
-                                                                                                 (cdr (state-values state)))
-                                                            (lambda(v) (return (list (cons (car (state-names state)) (state-names v))
-                                                            (cons (car (state-values state)) (state-values v))))))])))
+      [(null? (top-names state))                        (error "Undeclared variable")]
+      [(eq? (car (top-names state)) (term1 expression)) (return (list (top-names state)
+                                                                        (cons (term2 expression) (cdr (top-values state)))))]
+      [else                                               (assign-statement-cps expression (list (cdr (top-names state))
+                                                                                                 (cdr (top-values state)))
+                                                            (lambda(v) (return (list (cons (car (top-names state)) (top-names v))
+                                                            (cons (car (top-values state)) (top-values v))))))])))
 ;state names                                    
-(define state-names
+(define top-names
   (lambda (state)
-    (car state)))
+    (caar state)))
 
 ;state values
-(define state-values
+(define top-values
   (lambda (state)
-    (cadr state)))
+    (cadar state)))
 
 ;return
 (define return

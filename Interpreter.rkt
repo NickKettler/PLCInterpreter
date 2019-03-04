@@ -32,12 +32,16 @@
       ((eq? (operator expression) '*)                                (multiply-statement expression state))
       ((eq? (operator expression) '/)                                (divide-statement expression state))
       ((eq? (operator expression) '%)                                (modulus-statement expression state))
-      ((eq? (operator expression) '==)                               (equals-statement expression state))
-      ((eq? (operator expression) '!=)                               (not-equals-statement expression state))
-      ((eq? (operator expression) '<)                                (less-than expression state))
-      ((eq? (operator expression) '>)                                (greater-than expression state))
-      ((eq? (operator expression) '<=)                               (less-or-equal expression state))
-      ((eq? (operator expression) '>=)                               (greater-or-equal expression state))
+      ((eq? (operator expression) '==)                               (comparison-statement eq? expression state))
+      ((eq? (operator expression) '!=)                               (not (comparison-statement eq? expression state)))
+      ((eq? (operator expression) '<)                                (comparison-statement < expression state))
+      ((eq? (operator expression) '>)                                (comparison-statement > expression state))
+      ((eq? (operator expression) '<=)                               (or
+                                                                      (comparison-statement eq? expression state)
+                                                                      (comparison-statement < expression state)))
+      ((eq? (operator expression) '>=)                               (or
+                                                                      (comparison-statement eq? expression state)
+                                                                      (comparison-statement > expression state)))
       ((eq? (operator expression) '&&)                               (and-statement expression state))
       ((eq? (operator expression) '||)                               (or-statement expression state))
       ((eq? (operator expression) '!)                                (not-statement expression state))
@@ -207,35 +211,11 @@
   (lambda (expression)
     (caddr expression)))
 
-;equals
-(define equals-statement
-  (lambda (expression state)
-    (eq? (M_value (term1 expression) state) (M_value (term2 expression) state))))
+;comparison-statement
+(define comparison-statement
+  (lambda (function expression state)
+    (function (M_value (term1 expression) state) (M_value (term2 expression) state))))
 
-;notequals
-(define not-equals-statement
-  (lambda (expression state)
-    (not (equals-statement expression state))))
-
-;less than
-(define less-than
-  (lambda (expression state)
-    (< (M_value (term1 expression) state) (M_value (term2 expression) state))))
-
-;greater than
-(define greater-than
-  (lambda (expression state)
-    (> (M_value (term1 expression) state) (M_value (term2 expression) state))))
-
-;less than or equal to
-(define less-or-equal
-  (lambda (expression state)
-    (or (equals-statement expression state) (less-than expression state))))
-
-;greater than or equal to
-(define greater-or-equal
-  (lambda (expression state)
-    (or (equals-statement expression state) (greater-than expression state))))
 
 ;and
 (define and-statement

@@ -71,6 +71,24 @@
   (lambda ()
     '(()())))
 
+
+;pop layer
+(define pop
+  (lambda (state)
+    (cdr state)))
+
+;push layer
+(define push
+  (lambda (layer state)
+    (cons layer state)))
+
+;modify layer
+;Takes a state and a layer and returns the new state that is the result of the top layer being replaced by the input layer
+(define modify-top
+  (lambda (layer state)
+    (push layer (pop state))))
+
+
 ;add variable to state
 (define add-variable
   (lambda (expression state)

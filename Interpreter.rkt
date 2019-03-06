@@ -54,7 +54,13 @@
       ((eq? (operator expression) '=)                                (assign-statement expression state return))
       ((eq? (operator expression) 'var)                              (add-variable expression state return))
       ((eq? (operator expression) 'return)                           (return (M_value (cdr expression) state return)))
+      ((eq? (operator expression) 'begin)                            (M_value (cdr expression) state return))
       ((and (list? (operator expression)) (null? (cdr expression)))  (M_value (car expression) state return))
+      ((and (list? (operator expression))
+            (eq? (operator (operator expression)) 'begin))           (M_value
+                                                                      (cdr expression)
+                                                                      (pop (M_state (car expression) state return))
+                                                                      return))
       ((list? (operator expression))                                 (M_value
                                                                       (cdr expression)
                                                                       (M_state (car expression) state return)

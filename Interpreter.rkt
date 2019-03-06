@@ -11,7 +11,9 @@
 ;returns the value of the code in the filename
 (define interpret
   (lambda (filename)
-    (format-result (M_value (parser filename) (default-state)))))
+    (call/cc
+     (lambda (return)
+       (format-result (M_value (parser filename) (default-state) return))))))
 
 ;format result to show true and false atoms
 (define format-result
@@ -23,42 +25,45 @@
 
 ;returns the value of the expression
 (define M_value
-  (lambda (expression state)
+  (lambda (expression state return)
     (cond      
       ((number? expression)                                          expression)
-      ((eq? (operator expression) '+)                                (add-statement expression state))
-      ((and (eq? (operator expression) '-) (null? (cddr expression)) (unary-statement expression state)))
-      ((eq? (operator expression) '-)                                (subtract-statement expression state))
-      ((eq? (operator expression) '*)                                (multiply-statement expression state))
-      ((eq? (operator expression) '/)                                (divide-statement expression state))
-      ((eq? (operator expression) '%)                                (modulus-statement expression state))
-      ((eq? (operator expression) '==)                               (comparison-statement eq? expression state))
-      ((eq? (operator expression) '!=)                               (not (comparison-statement eq? expression state)))
-      ((eq? (operator expression) '<)                                (comparison-statement < expression state))
-      ((eq? (operator expression) '>)                                (comparison-statement > expression state))
+      ((eq? (operator expression) '+)                                (math-statement + expression state return))
+      ((and (eq? (operator expression) '-) (null? (cddr expression)) (unary-statement expression state return)))
+      ((eq? (operator expression) '-)                                (math-statement - expression state return))
+      ((eq? (operator expression) '*)                                (math-statement * expression state return))
+      ((eq? (operator expression) '/)                                (math-statement quotient expression state return))
+      ((eq? (operator expression) '%)                                (math-statement remainder expression state return))
+      ((eq? (operator expression) '==)                               (comparison-statement eq? expression state return))
+      ((eq? (operator expression) '!=)                               (not (comparison-statement eq? expression state return)))
+      ((eq? (operator expression) '<)                                (comparison-statement < expression state return))
+      ((eq? (operator expression) '>)                                (comparison-statement > expression state return))
       ((eq? (operator expression) '<=)                               (or
-                                                                      (comparison-statement eq? expression state)
-                                                                      (comparison-statement < expression state)))
+                                                                      (comparison-statement eq? expression state return)
+                                                                      (comparison-statement < expression state return)))
       ((eq? (operator expression) '>=)                               (or
-                                                                      (comparison-statement eq? expression state)
-                                                                      (comparison-statement > expression state)))
-      ((eq? (operator expression) '&&)                               (and-statement expression state))
-      ((eq? (operator expression) '||)                               (or-statement expression state))
-      ((eq? (operator expression) '!)                                (not-statement expression state))
+                                                                      (comparison-statement eq? expression state return)
+                                                                      (comparison-statement > expression state return)))
+      ((eq? (operator expression) '&&)                               (and-statement expression state return))
+      ((eq? (operator expression) '||)                               (or-statement expression state return))
+      ((eq? (operator expression) '!)                                (not-statement expression state return))
       ((eq? (operator expression) 'true)                             #t)
       ((eq? (operator expression) 'false)                            #f)
-      ((eq? (operator expression) 'if)                               (if-statement expression state))
-      ((eq? (operator expression) 'while)                            (while-statement expression state))
-      ((eq? (operator expression) '=)                                (assign-statement expression state))
-      ((eq? (operator expression) 'var)                              (add-variable expression state))
-      ((eq? (operator expression) 'return)                           (return expression state))
-      ((and (list? (operator expression)) (null? (cdr expression)))  (M_value (car expression) state))
-      ((list? (operator expression))                                 (M_value (cdr expression) (M_state (car expression) state)))
-      (else                                                          (retrieve-value expression state)))))
+      ((eq? (operator expression) 'if)                               (if-statement expression state return))
+      ((eq? (operator expression) 'while)                            (while-statement expression state return))
+      ((eq? (operator expression) '=)                                (assign-statement expression state return))
+      ((eq? (operator expression) 'var)                              (add-variable expression state return))
+      ((eq? (operator expression) 'return)                           (return (M_value (cdr expression) state return)))
+      ((and (list? (operator expression)) (null? (cdr expression)))  (M_value (car expression) state return))
+      ((list? (operator expression))                                 (M_value
+                                                                      (cdr expression)
+                                                                      (M_state (car expression) state return)
+                                                                      return))
+      (else                                                          (retrieve-value expression state return)))))
 
 ;state
 (define M_state
-  (lambda (expression state)
+  (lambda (expression state return)
     (cond
       ((eq? (operator expression) 'var)   (add-variable expression state))
       ((eq? (operator expression) '=)     (assign-statement expression state))
@@ -105,22 +110,22 @@
 
 ;add variable to state
 (define add-variable
-  (lambda (expression state)
+  (lambda (expression state return)
     (if (null? (cddr expression))
         (modify-top (list (append (top-names state) (list (term1 expression))) (append (top-values state) '(?))) state)
         (modify-top (list (append (top-names state)
                                   (list (term1 expression))) (append (top-values state)
-                                                                     (list (M_value (term2 expression) state)))) state))))
+                                                                     (list (M_value (term2 expression) state return)))) state))))
 
 ;find a variable's value
 (define retrieve-value
-  (lambda (expression state)
+  (lambda (expression state return)
     (cond
       ((and (null? (top-names state)) (null? (pop state)))                                    (error "undeclared variable"))
-      ((null? (top-names state))                                                              (retrieve-value expression (pop state)))
+      ((null? (top-names state))                                                              (retrieve-value expression (pop state) return))
       ((and (eq? (car (top-names state)) expression) (not (eq? (car (top-values state)) '?))) (car (top-values state)))
       ((and (eq? (car (top-names state)) expression) (eq? (car (top-values state)) '?))       (error "No assigned value"))
-      (else (retrieve-value expression (cons (list (cdr (top-names state)) (cdr (top-values state))) (cdr state)))))))
+      (else (retrieve-value expression (cons (list (cdr (top-names state)) (cdr (top-values state))) (cdr state)) return)))))
 
 ;assignment
 (define assign-statement
@@ -153,21 +158,13 @@
   (lambda (state)
     (cadar state)))
 
-;return
-(define return
-  (lambda (expression state)
-    (cond
-      ((list? (term1 expression))   (M_value (term1 expression) state))
-      ((number? (term1 expression)) (M_value (term1 expression) state))
-      (else                         (retrieve-value (term1 expression) state)))))
-
 ;if statement
 (define if-statement
-  (lambda (expression state)
-    (if (M_value (conditional expression) state)
-        (M_value (then-statement expression) state)
+  (lambda (expression state return)
+    (if (M_value (conditional expression) state return)
+        (M_value (then-statement expression) state return)
         (if (not (null? (cdddr expression)))
-            (M_value (optional-else-statement expression) state)
+            (M_value (optional-else-statement expression) state return)
             state))))
 
 ;the condition of the if-statement or while-statement
@@ -185,47 +182,34 @@
   (lambda (else)
     (cadddr else)))
 
-;while statement
+;while statement interior
+(define while-call
+  (lambda (expression state return break)
+    (cond
+      ((M_value (conditional expression) state return) (while-call expression (M_state (body-statement expression) state return) break))
+      (else                                     state))))
+
+;while statement starter
 (define while-statement
-  (lambda (expression state)
-    (if (M_value (conditional expression) state)
-        (while-statement expression (M_state (body-statement expression) state))
-        state)))
+  (lambda (expression state return)    
+    (call/cc
+     (lambda (break)
+       (while-call expression state return break)))))
 
 ;while body statement
 (define body-statement
   (lambda (expression)
     (caddr expression)))
 
-;addition
-(define add-statement
-  (lambda (expression state)
-    (+ (M_value (term1 expression) state) (M_value (term2 expression) state))))
-
-;subtraction
-(define subtract-statement
-  (lambda (expression state)
-    (- (M_value (term1 expression) state) (M_value (term2 expression) state))))
-
-;multiplication
-(define multiply-statement
-  (lambda (expression state)
-    (* (M_value (term1 expression) state) (M_value (term2 expression) state))))
-
-;division
-(define divide-statement
-  (lambda (expression state)
-    (quotient (M_value (term1 expression) state) (M_value (term2 expression) state))))
-
-;modulus 
-(define modulus-statement
-  (lambda (expression state)
-    (remainder (M_value (term1 expression) state) (M_value (term2 expression) state))))
+;all mathematical statements except unary
+(define math-statement
+  (lambda (operator expression state return)
+    (operator (M_value (term1 expression) state return) (M_value (term2 expression) state return))))
 
 ;unary 
 (define unary-statement
-  (lambda (expression state)
-    (* -1 (M_value (term1 expression) state))))
+  (lambda (expression state return)
+    (* -1 (M_value (term1 expression) state return))))
 
 ;operator
 (define operator
@@ -246,21 +230,21 @@
 
 ;comparison-statement
 (define comparison-statement
-  (lambda (function expression state)
-    (function (M_value (term1 expression) state) (M_value (term2 expression) state))))
+  (lambda (function expression state return)
+    (function (M_value (term1 expression) state return) (M_value (term2 expression) state return))))
 
 
 ;and
 (define and-statement
-  (lambda (expression state)
-    (and (M_value (term1 expression) state) (M_value (term2 expression) state))))
+  (lambda (expression state return)
+    (and (M_value (term1 expression) state return) (M_value (term2 expression) state return))))
 
 ;or
 (define or-statement
-  (lambda (expression state)
-    (or (M_value (term1 expression) state) (M_value (term2 expression) state))))
+  (lambda (expression state return)
+    (or (M_value (term1 expression) state return) (M_value (term2 expression) state return))))
 
 ;not
 (define not-statement
-  (lambda (expression state)
-    (not (M_value (term1 expression) state))))
+  (lambda (expression state return)
+    (not (M_value (term1 expression) state return))))

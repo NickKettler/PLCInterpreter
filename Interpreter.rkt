@@ -141,17 +141,31 @@
 (define assign-statement-cps
   (lambda (expression state return)
     (cond
-      [(null? (top-names state))                        (error "Undeclared variable")]
-      [(eq? (car (top-names state)) (term1 expression)) (return (list (top-names state)
-                                                                        (cons (term2 expression) (cdr (top-values state)))))]
-      [else                                               (assign-statement-cps expression (list (cdr (top-names state))
-                                                                                                 (cdr (top-values state)))
-                                                            (lambda(v) (return (list (cons (car (top-names state)) (top-names v))
-                                                            (cons (car (top-values state)) (top-values v))))))])))
+      [(null? state)                                    (error "Undeclared variable")]
+      [(null?  (top-names state))                       (assign-statement-cps expression (lower-layers state)
+                                                                                         (lambda(v) (return (cons (top-layer state)
+                                                                                                                   v))))]
+      [(eq? (car (top-names state)) (term1 expression)) (return (modify-top (list (top-names state)
+                                                                                  (cons (term2 expression)
+                                                                                        (cdr (top-values state)))) state))]
+      [else                                               (assign-statement-cps expression (modify-top (list (cdr (top-names state))
+                                                                                                             (cdr (top-values state)))state)
+                                                            (lambda(v) (return (modify-top (list (cons (car (top-names state)) (top-names v))
+                                                            (cons (car (top-values state)) (top-values v))) v))))])))
 ;state names                                    
 (define top-names
   (lambda (state)
     (caar state)))
+
+;top layer
+(define top-layer
+  (lambda (state)
+    (car state)))
+
+;lower layers
+(define lower-layers
+  (lambda (state)
+    (cdr state)))
 
 ;state values
 (define top-values

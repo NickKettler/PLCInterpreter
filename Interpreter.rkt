@@ -59,17 +59,18 @@
                                                                       (cdr expression)
                                                                       (M_state (car expression) state return)
                                                                       return))
+      ((list? expression)                                            (retrieve-value (car expression) state return))
       (else                                                          (retrieve-value expression state return)))))
 
 ;state
 (define M_state
   (lambda (expression state return)
     (cond
-      ((eq? (operator expression) 'var)   (add-variable expression state))
-      ((eq? (operator expression) '=)     (assign-statement expression state))
-      ((eq? (operator expression) 'if)    (if-statement expression state))
-      ((eq? (operator expression) 'while) (while-statement expression state))
-      ((eq? (operator expression) 'begin) (M_value (cdr expression) (enter-block state)))
+      ((eq? (operator expression) 'var)   (add-variable expression state return))
+      ((eq? (operator expression) '=)     (assign-statement expression state return))
+      ((eq? (operator expression) 'if)    (if-statement expression state return))
+      ((eq? (operator expression) 'while) (while-statement expression state return))
+      ((eq? (operator expression) 'begin) (M_value (cdr expression) (enter-block state) return))
       (else                               state))))
 
 ;default state
@@ -129,12 +130,12 @@
 
 ;assignment
 (define assign-statement
-  (lambda (expression state)
+  (lambda (expression state return)
     (if(number? (term2 expression))
        (assign-statement-cps expression state (lambda(v) v))
        (assign-statement-cps (list (operator expression)
                                    (term1 expression)
-                                   (M_value (term2 expression) state)) state (lambda(v) v)))))
+                                   (M_value (term2 expression) state return)) state (lambda(v) v)))))
 
 
 ;assignment

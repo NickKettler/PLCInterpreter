@@ -64,7 +64,7 @@
 (define M_state
   (lambda (expression state return)
     (cond
-      [(null? expression) state]
+      [(null? expression)                  state]
       ((eq? (operator expression) 'var)    (add-variable expression state return))
       ((eq? (operator expression) '=)      (assign-statement expression state return))
       ((eq? (operator expression) 'if)     (if-statement expression state return))

@@ -206,9 +206,9 @@
 ;while statement interior
 (define while-call
   (lambda (expression state return break)
-    (cond
-      ((M_value (conditional expression) state return) (while-call expression (M_state (body-statement expression) state return) break))
-      (else                                     state))))
+    (if (M_value (conditional expression) state return)
+        (while-call expression (M_state (body-statement expression) state return) return break)
+        (return))))
 
 ;while statement starter
 (define while-statement

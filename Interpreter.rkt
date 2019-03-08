@@ -72,12 +72,13 @@
 (define M_state
   (lambda (expression state return)
     (cond
-      ((eq? (operator expression) 'var)   (add-variable expression state return))
-      ((eq? (operator expression) '=)     (assign-statement expression state return))
-      ((eq? (operator expression) 'if)    (if-statement expression state return))
-      ((eq? (operator expression) 'while) (while-statement expression state return))
-      ((eq? (operator expression) 'begin) (M_value (cdr expression) (enter-block state) return))
-      (else                               state))))
+      ((eq? (operator expression) 'var)    (add-variable expression state return))
+      ((eq? (operator expression) '=)      (assign-statement expression state return))
+      ((eq? (operator expression) 'if)     (if-statement expression state return))
+      ((eq? (operator expression) 'while)  (while-statement expression state return))
+      ((eq? (operator expression) 'begin)  (M_value (cdr expression) (enter-block state) return))
+      ((eq? (operator expression) 'return) (return (M_value (cdr expression) state return)))
+      (else                                state))))
 
 ;default state
 (define default-state
@@ -269,3 +270,18 @@
 (define not-statement
   (lambda (expression state return)
     (not (M_value (term1 expression) state return))))
+
+;try block statement
+(define try-catch
+  (lambda (expression state return)
+    (state)))
+
+;catch block
+(define catch
+  (lambda (expression)
+    (cdr expression)))
+
+;finally block
+(define finally
+  (lambda (expression)
+    (cddr expression)))

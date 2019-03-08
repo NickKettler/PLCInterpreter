@@ -13,10 +13,10 @@
   (lambda (filename)
     (call/cc
      (lambda (return)
-       (format-result (M_value (parser filename) (default-state) return))))))
+       (format-result (M_state (parser filename) (default-state) return))))))
 
 ;format result to show true and false atoms
-(define format-result
+(define format-result  ;;This method is bypassed by call/cc
   (lambda (value)
     (cond
       ((eq? value #t) 'true)
@@ -27,7 +27,7 @@
 (define M_value
   (lambda (expression state return)
     (cond      
-      ((number? expression)                                          expression)
+      ((number? (operator expression))                               (operator expression))
       ((eq? (operator expression) '+)                                (math-statement + expression state return))
       ((and (eq? (operator expression) '-) (null? (cddr expression)) (unary-statement expression state return)))
       ((eq? (operator expression) '-)                                (math-statement - expression state return))
@@ -49,36 +49,30 @@
       ((eq? (operator expression) '!)                                (not-statement expression state return))
       ((eq? (operator expression) 'true)                             #t)
       ((eq? (operator expression) 'false)                            #f)
-      ((eq? (operator expression) 'if)                               (if-statement expression state return))
-      ((eq? (operator expression) 'while)                            (while-statement expression state return))
-      ((eq? (operator expression) '=)                                (assign-statement expression state return))
-      ((eq? (operator expression) 'var)                              (add-variable expression state return))
-      ((eq? (operator expression) 'return)                           (return (M_value (cdr expression) state return)))
-      ((eq? (operator expression) 'begin)                            (M_value (cdr expression) state return))
+      ((eq? (operator expression) 'while)                            (while-statement expression state return)) ;;remove
+     ; ((eq? (operator expression) 'return)                           (return (M_value (cdr expression) state return))) ;;remove
       ((and (list? (operator expression)) (null? (cdr expression)))  (M_value (car expression) state return))
-      ((and (list? (operator expression))
-            (eq? (operator (operator expression)) 'begin))           (M_value
-                                                                      (cdr expression)
-                                                                      (pop (M_state (car expression) state return))
-                                                                      return))
-      ((list? (operator expression))                                 (M_value
+      ((list? (operator expression))                                 (M_value                                          ;;Probably remove
                                                                       (cdr expression)
                                                                       (M_state (car expression) state return)
-                                                                      return))
+                                                                       return))
       ((list? expression)                                            (retrieve-value (car expression) state return))
       (else                                                          (retrieve-value expression state return)))))
+      
 
 ;state
 (define M_state
   (lambda (expression state return)
     (cond
+      [(null? expression) state]
       ((eq? (operator expression) 'var)    (add-variable expression state return))
       ((eq? (operator expression) '=)      (assign-statement expression state return))
       ((eq? (operator expression) 'if)     (if-statement expression state return))
       ((eq? (operator expression) 'while)  (while-statement expression state return))
-      ((eq? (operator expression) 'begin)  (M_value (cdr expression) (enter-block state) return))
-      ((eq? (operator expression) 'return) (return (M_value (cdr expression) state return)))
-      (else                                state))))
+      ((eq? (operator expression) 'begin)  (pop (M_state (cdr expression) (enter-block state) return)))
+      ((eq? (operator expression) 'return) (return (M_state (cdr expression) state return)))
+      ((list? (operator expression))       (M_state (cdr expression) (M_state (car expression) state return) return)) ;;added
+      (else                                (return (M_value expression state return))))))
 
 ;default state
 (define default-state
@@ -142,7 +136,7 @@
        (assign-statement-cps expression state (lambda(v) v))
        (assign-statement-cps (list (operator expression)
                                    (term1 expression)
-                                   (M_value (term2 expression) state return)) state (lambda(v) v)))))
+                                   (M_value (term2 expression) state return)) state (lambda(v) v)))))   ;;probably remove m_value here and change to state
 
 
 ;assignment
@@ -184,9 +178,9 @@
 (define if-statement
   (lambda (expression state return)
     (if (M_value (conditional expression) state return)
-        (M_value (then-statement expression) state return)
+        (M_state (then-statement expression) state return)
         (if (not (null? (cdddr expression)))
-            (M_value (optional-else-statement expression) state return)
+            (M_state (optional-else-statement expression) state return)
             state))))
 
 ;the condition of the if-statement or while-statement

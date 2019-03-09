@@ -65,8 +65,8 @@
       ((eq? (operator expression) 'while)  (while-statement expression state return break continue))
       ((eq? (operator expression) 'begin)  (pop (M_state (cdr expression) (enter-block state) return break continue)))
       ((eq? (operator expression) 'return) (return (M_state (cdr expression) state return break continue)))
-      ((eq? (operator expression) 'break)  (break (pop state)))
-      ((eq? (operator expression) 'continue) (continue))
+      ((eq? (operator expression) 'break)  (break (pop state))) ;;should return error if break == 'not
+      ((eq? (operator expression) 'continue) (continue (pop state)))
       ((list? (operator expression))       (M_state (cdr expression)
                                                     (M_state (car expression) state return break continue)
                                                      return
@@ -201,7 +201,7 @@
 (define while-call
   (lambda (expression state return break continue)
     (if (M_value (conditional expression) state return)
-        (while-call expression (M_state (body-statement expression) state return break continue) return break continue)
+        (while-call expression (call/cc (lambda (k) (M_state (body-statement expression) state return break k))) return break continue)
         state)))
 
 ;while statement starter

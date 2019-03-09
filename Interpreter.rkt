@@ -13,7 +13,7 @@
   (lambda (filename)
     (call/cc
      (lambda (return)
-       (format-result (M_state (parser filename) (default-state) return 'not 'not))))))
+       (format-result (M_state (parser filename) (default-state) return 'not 'not 'not))))))
 
 ;format result to show true and false atoms
 (define format-result  ;;This method is bypassed by call/cc
@@ -56,22 +56,24 @@
 
 ;state
 (define M_state
-  (lambda (expression state return break continue)
+  (lambda (expression state return break continue throw)
     (cond
       [(null? expression)                  state]
       ((eq? (operator expression) 'var)    (add-variable expression state return))
       ((eq? (operator expression) '=)      (assign-statement expression state return))
-      ((eq? (operator expression) 'if)     (if-statement expression state return break continue))
-      ((eq? (operator expression) 'while)  (while-statement expression state return break continue))
-      ((eq? (operator expression) 'begin)  (pop (M_state (cdr expression) (enter-block state) return break continue)))
-      ((eq? (operator expression) 'return) (return (M_state (cdr expression) state return break continue)))
+      ((eq? (operator expression) 'if)     (if-statement expression state return break continue throw))
+      ((eq? (operator expression) 'while)  (while-statement expression state return break continue throw))
+      ((eq? (operator expression) 'begin)  (pop (M_state (cdr expression) (enter-block state) return break continue throw)))
+      ((eq? (operator expression) 'return) (return (M_state (cdr expression) state return break continue throw)))
       ((eq? (operator expression) 'break)  (break (pop state))) ;;should return error if break == 'not
       ((eq? (operator expression) 'continue) (continue (pop state)))
+      ((eq? (operator expression) 'try)    (try-catch expression state return break continue throw))
       ((list? (operator expression))       (M_state (cdr expression)
                                                     (M_state (car expression) state return break continue)
                                                      return
                                                      break
-                                                     continue)) ;;added
+                                                     continue
+                                                     throw))
       (else                                (M_value expression state return)))))
 ;default state
 (define default-state
@@ -266,8 +268,23 @@
 
 ;try block statement
 (define try-catch
-  (lambda (expression state return)
-    (state)))
+  (lambda (expression state return break continue throw)
+    (cond
+      [(null? (finally expression)) state]
+      [else (M_state (finally expression) (M_state (try expression)
+                                                   (lambda (v s2) (M_state
+                                                                                     (finally expression)
+                                                                                     s2
+                                                                                     return
+                                                                                     break
+                                                                                     continue
+                                                                                     throw)
+                                                                    return v)
+                                                   (lambda (x) (return (M_value x (M_state (finally expression) state return break continue throw))))
+                                                   (lambda (bs) (break M_state (finally expression) bs return break continue throw))
+                                                   (lambda (ex, s3) (M_state (finally expression) (M_state (catch expression) (add_variable (error expression) ex (push s3)) return break continue throw))))
+                     return, break, continue, throw)])))
+                                                   
 
 ;try block
 (define try
@@ -278,6 +295,11 @@
 (define catch
   (lambda (expression)
     (cddr expression)))
+
+;error
+(define error
+  (lambda (expression)
+    (cadr (catch expression))))
 
 ;finally block
 (define finally

@@ -13,7 +13,7 @@
   (lambda (filename)
     (call/cc
      (lambda (return)
-       (format-result (M_state (parser filename) (default-state) return))))))
+       (format-result (M_state (parser filename) (default-state) return 'not 'not))))))
 
 ;format result to show true and false atoms
 (define format-result  ;;This method is bypassed by call/cc
@@ -50,30 +50,29 @@
       ((eq? (operator expression) 'true)                             #t)
       ((eq? (operator expression) 'false)                            #f)
       ((eq? (operator expression) 'while)                            (while-statement expression state return)) ;;remove
-     ; ((eq? (operator expression) 'return)                           (return (M_value (cdr expression) state return))) ;;remove
-      ((and (list? (operator expression)) (null? (cdr expression)))  (M_value (car expression) state return))
-      ((list? (operator expression))                                 (M_value                                          ;;Probably remove
-                                                                      (cdr expression)
-                                                                      (M_state (car expression) state return)
-                                                                       return))
       ((list? expression)                                            (retrieve-value (car expression) state return))
       (else                                                          (retrieve-value expression state return)))))
       
 
 ;state
 (define M_state
-  (lambda (expression state return)
+  (lambda (expression state return break continue)
     (cond
       [(null? expression)                  state]
       ((eq? (operator expression) 'var)    (add-variable expression state return))
       ((eq? (operator expression) '=)      (assign-statement expression state return))
-      ((eq? (operator expression) 'if)     (if-statement expression state return))
-      ((eq? (operator expression) 'while)  (while-statement expression state return))
-      ((eq? (operator expression) 'begin)  (pop (M_state (cdr expression) (enter-block state) return)))
-      ((eq? (operator expression) 'return) (return (M_state (cdr expression) state return)))
-      ((list? (operator expression))       (M_state (cdr expression) (M_state (car expression) state return) return)) ;;added
-      (else                                (return (M_value expression state return))))))
-
+      ((eq? (operator expression) 'if)     (if-statement expression state return break continue))
+      ((eq? (operator expression) 'while)  (while-statement expression state return break continue))
+      ((eq? (operator expression) 'begin)  (pop (M_state (cdr expression) (enter-block state) return break continue)))
+      ((eq? (operator expression) 'return) (return (M_state (cdr expression) state return break continue)))
+      ((eq? (operator expression) 'break)  (break (pop state))) ;;should return error if break == 'not
+      ((eq? (operator expression) 'continue) (continue (pop state)))
+      ((list? (operator expression))       (M_state (cdr expression)
+                                                    (M_state (car expression) state return break continue)
+                                                     return
+                                                     break
+                                                     continue)) ;;added
+      (else                                (M_value expression state return)))))
 ;default state
 (define default-state
   (lambda ()
@@ -176,11 +175,11 @@
 
 ;if statement
 (define if-statement
-  (lambda (expression state return)
-    (if (M_value (conditional expression) state return)
-        (M_state (then-statement expression) state return)
+  (lambda (expression state return break continue)
+    (if (M_state (conditional expression) state return break continue)
+        (M_state (then-statement expression) state return break continue)
         (if (not (null? (cdddr expression)))
-            (M_state (optional-else-statement expression) state return)
+            (M_state (optional-else-statement expression) state return break continue)
             state))))
 
 ;the condition of the if-statement or while-statement
@@ -200,17 +199,17 @@
 
 ;while statement interior
 (define while-call
-  (lambda (expression state return break)
+  (lambda (expression state return break continue)
     (if (M_value (conditional expression) state return)
-        (while-call expression (M_state (body-statement expression) state return) return break)
-        (return))))
+        (while-call expression (call/cc (lambda (k) (M_state (body-statement expression) state return break k))) return break continue)
+        state)))
 
 ;while statement starter
 (define while-statement
-  (lambda (expression state return)    
+  (lambda (expression state return break continue)    
     (call/cc
-     (lambda (break)
-       (while-call expression state return break)))))
+     (lambda (k)
+       (while-call expression state return k continue)))))
 
 ;while body statement
 (define body-statement
@@ -247,7 +246,7 @@
 ;comparison-statement
 (define comparison-statement
   (lambda (function expression state return)
-    (function (M_value (term1 expression) state return) (M_value (term2 expression) state return))))
+    (function (M_state (term1 expression) state return 'not 'not) (M_state (term2 expression) state return 'not 'not))))
 
 
 ;and

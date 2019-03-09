@@ -66,7 +66,9 @@
       ((eq? (operator expression) 'while)  (while-statement expression state return break continue throw))
       ((eq? (operator expression) 'begin)  (pop (M_state (cdr expression) (enter-block state) return break continue throw)))
       ((eq? (operator expression) 'return) (return (M_state (cdr expression) state return break continue throw)))
-      ((eq? (operator expression) 'break)  (break (pop state))) ;;should return error if break == 'not
+      ((eq? (operator expression) 'break)  (if (eq? break 'not)
+                                               (error "break not in while")
+                                               (break (pop state))));;should return error if break == 'not
       ((eq? (operator expression) 'continue) (continue (pop state)))
       ((eq? (operator expression) 'try)    (try-catch expression state return break continue throw))
       ((list? (operator expression))       (M_state (cdr expression)
@@ -178,11 +180,11 @@
 
 ;if statement
 (define if-statement
-  (lambda (expression state return break continue)
-    (if (M_state (conditional expression) state return break continue)
-        (M_state (then-statement expression) state return break continue)
+  (lambda (expression state return break continue throw)
+    (if (M_state (conditional expression) state return break continue throw)
+        (M_state (then-statement expression) state return break continue throw)
         (if (not (null? (cdddr expression)))
-            (M_state (optional-else-statement expression) state return break continue)
+            (M_state (optional-else-statement expression) state return break continue throw)
             state))))
 
 ;the condition of the if-statement or while-statement
@@ -202,17 +204,22 @@
 
 ;while statement interior
 (define while-call
-  (lambda (expression state return break continue)
+  (lambda (expression state return break continue throw)
     (if (M_value (conditional expression) state return)
-        (while-call expression (call/cc (lambda (k) (M_state (body-statement expression) state return break k))) return break continue)
+        (while-call expression
+                    (call/cc (lambda (k) (M_state (body-statement expression) state return break k throw)))
+                    return
+                    break
+                    continue
+                    throw)
         state)))
 
 ;while statement starter
 (define while-statement
-  (lambda (expression state return break continue)    
+  (lambda (expression state return break continue throw)    
     (call/cc
      (lambda (k)
-       (while-call expression state return k continue)))))
+       (while-call expression state return k continue throw)))))
 
 ;while body statement
 (define body-statement
@@ -283,7 +290,7 @@
                                                                     return v)
                                                    (lambda (x) (return (M_value x (M_state (finally expression) state return break continue throw))))
                                                    (lambda (bs) (break M_state (finally expression) bs return break continue throw))
-                                                   (lambda (ex s3) (M_state (finally expression) (M_state (catch expression) (add-variable (error expression) ex (push s3)) return break continue throw)))
+                                                   (lambda (ex s3) (M_state (finally expression) (M_state (catch expression) (add-variable (error-block expression) ex (push s3)) return break continue throw)))
                                                    throw)
                      return break continue throw)])))
                                                    
@@ -299,7 +306,7 @@
     (cddr expression)))
 
 ;error
-(define error
+(define error-block
   (lambda (expression)
     (cadr (catch expression))))
 

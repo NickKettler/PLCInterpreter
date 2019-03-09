@@ -63,16 +63,15 @@
       ((eq? (operator expression) '=)      (assign-statement expression state return))
       ((eq? (operator expression) 'if)     (if-statement expression state return break continue))
       ((eq? (operator expression) 'while)  (while-statement expression state return break continue))
-      ((eq? (operator expression) 'begin)  (pop (M_state (cdr expression) (enter-block state) return)))
+      ((eq? (operator expression) 'begin)  (pop (M_state (cdr expression) (enter-block state) return break continue)))
       ((eq? (operator expression) 'return) (return (M_state (cdr expression) state return break continue)))
-      ((eq? (operator expression) 'break   (break state)))
+      ((eq? (operator expression) 'break)  (break state))
       ((list? (operator expression))       (M_state (cdr expression)
                                                     (M_state (car expression) state return break continue)
-                                                    return
-                                                    break
-                                                    continue)) ;;added
-      (else                                (return (M_value expression state return break continue))))))
-
+                                                     return
+                                                     break
+                                                     continue)) ;;added
+      (else                                (return (M_value expression state return))))))
 ;default state
 (define default-state
   (lambda ()
@@ -176,7 +175,7 @@
 ;if statement
 (define if-statement
   (lambda (expression state return break continue)
-    (if (M_value (conditional expression) state return)
+    (if (M_state (conditional expression) state return break continue)
         (M_state (then-statement expression) state return break continue)
         (if (not (null? (cdddr expression)))
             (M_state (optional-else-statement expression) state return break continue)
@@ -246,7 +245,7 @@
 ;comparison-statement
 (define comparison-statement
   (lambda (function expression state return)
-    (function (M_value (term1 expression) state return) (M_value (term2 expression) state return))))
+    (function (M_state (term1 expression) state return 'not 'not) (M_state (term2 expression) state return 'not 'not))))
 
 
 ;and

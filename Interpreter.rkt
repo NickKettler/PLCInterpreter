@@ -269,12 +269,17 @@
   (lambda (expression state return)
     (state)))
 
+;try block
+(define try
+  (lambda (expression)
+    (cdr expression)))
+
 ;catch block
 (define catch
   (lambda (expression)
-    (cdr expression)))
+    (cddr expression)))
 
 ;finally block
 (define finally
   (lambda (expression)
-    (cddr expression)))
+    (cdddr expression)))

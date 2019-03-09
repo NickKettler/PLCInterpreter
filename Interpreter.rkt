@@ -65,13 +65,14 @@
       ((eq? (operator expression) 'while)  (while-statement expression state return break continue))
       ((eq? (operator expression) 'begin)  (pop (M_state (cdr expression) (enter-block state) return break continue)))
       ((eq? (operator expression) 'return) (return (M_state (cdr expression) state return break continue)))
-      ((eq? (operator expression) 'break)  (break state))
+      ((eq? (operator expression) 'break)  (break (pop state)))
+      ((eq? (operator expression) 'continue) (continue))
       ((list? (operator expression))       (M_state (cdr expression)
                                                     (M_state (car expression) state return break continue)
                                                      return
                                                      break
                                                      continue)) ;;added
-      (else                                (return (M_value expression state return))))))
+      (else                                (M_value expression state return)))))
 ;default state
 (define default-state
   (lambda ()

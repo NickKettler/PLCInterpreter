@@ -11,9 +11,10 @@
 ;returns the value of the code in the filename
 (define interpret
   (lambda (filename)
-    (call/cc
-     (lambda (return)
-       (format-result (M_state (parser filename) (default-state) return 'not 'not 'not))))))
+    (format-result
+     (call/cc
+      (lambda (return)
+       (M_state (parser filename) (default-state) return 'not 'not 'not))))))
 
 ;format result to show true and false atoms
 (define format-result  ;;This method is bypassed by call/cc
@@ -69,7 +70,7 @@
       ((eq? (operator expression) 'continue) (continue (pop state)))
       ((eq? (operator expression) 'try)    (try-catch expression state return break continue throw))
       ((list? (operator expression))       (M_state (cdr expression)
-                                                    (M_state (car expression) state return break continue)
+                                                    (M_state (car expression) state return break continue throw)
                                                      return
                                                      break
                                                      continue
@@ -248,7 +249,7 @@
 ;comparison-statement
 (define comparison-statement
   (lambda (function expression state return)
-    (function (M_state (term1 expression) state return 'not 'not) (M_state (term2 expression) state return 'not 'not))))
+    (function (M_state (term1 expression) state return 'not 'not 'not) (M_state (term2 expression) state return 'not 'not 'not))))
 
 
 ;and
@@ -282,8 +283,9 @@
                                                                     return v)
                                                    (lambda (x) (return (M_value x (M_state (finally expression) state return break continue throw))))
                                                    (lambda (bs) (break M_state (finally expression) bs return break continue throw))
-                                                   (lambda (ex, s3) (M_state (finally expression) (M_state (catch expression) (add_variable (error expression) ex (push s3)) return break continue throw))))
-                     return, break, continue, throw)])))
+                                                   (lambda (ex s3) (M_state (finally expression) (M_state (catch expression) (add-variable (error expression) ex (push s3)) return break continue throw)))
+                                                   throw)
+                     return break continue throw)])))
                                                    
 
 ;try block

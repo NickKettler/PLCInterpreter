@@ -275,27 +275,9 @@
   (lambda (expression state return)
     (not (M_value (term1 expression) state return))))
 
-;try block statement
-(define try-catch
-  (lambda (expression state return break continue throw)
-    (cond
-      [(null? (finally expression)) state]
-      [else (M_state (finally expression) (M_state (try expression)
-                                                   (lambda (v s2) (M_state
-                                                                                     (finally expression)
-                                                                                     s2
-                                                                                     return
-                                                                                     break
-                                                                                     continue
-                                                                                     throw)
-                                                                    return v)
-                                                   (lambda (x) (return (M_value x (M_state (finally expression) state return break continue throw))))
-                                                   (lambda (bs) (break M_state (finally expression) bs return break continue throw))
-                                                   (lambda (ex s3) (M_state (finally expression) (M_state (catch expression) (add-variable (error-block expression) ex (push s3)) return break continue throw)))
-                                                   throw)
-                     return break continue throw)])))
-
 ; Interpret a try-catch-finally block
+
+;Known issue - Does not give correct error if throw in catch block
 
 ; Create a continuation for the throw.  If there is no catch, it has to interpret the finally block, and once that completes throw the exception.
 ;   Otherwise, it interprets the catch block with the exception bound to the thrown value and interprets the finally block when the catch is done

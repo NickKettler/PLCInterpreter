@@ -326,7 +326,7 @@
               (new-return (lambda (v) (begin (M_state finally-block environment return break continue throw) (return v))))
               (new-break (lambda (env) (break (M_state finally-block env return break continue throw))))
               (new-continue (lambda (env) (continue (M_state finally-block env return break continue throw))))
-              (new-throw (create-throw-catch-continuation (caddr statement) environment return break continue throw jump finally-block)))
+              (new-throw (create-throw-catch-continuation (catch statement) environment return break continue throw jump finally-block)))
          (M_state finally-block
                           (M_state try-block environment new-return new-break new-continue new-throw)
                           return break continue throw))))))
@@ -340,18 +340,17 @@
   (lambda (finally-statement)
     (cond
       ((null? finally-statement) '(begin))
-      ((not (eq? (car finally-statement) 'finally)) (error "Incorrectly formatted finally block"))
       (else (cons 'begin (cadr finally-statement))))))
 
 ;try block
 (define try
   (lambda (expression)
-    (cdr expression)))
+    (cadr expression)))
 
 ;catch block
 (define catch
   (lambda (expression)
-    (cddr expression)))
+    (caddr expression)))
 
 ;error
 (define error-block
@@ -361,4 +360,4 @@
 ;finally block
 (define finally
   (lambda (expression)
-    (cdddr expression)))
+    (cadddr expression)))

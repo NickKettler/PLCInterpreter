@@ -11,9 +11,10 @@
 ;returns the value of the code in the filename
 (define interpret
   (lambda (filename)
-    (call/cc
-     (lambda (return)
-       (format-result (M_state (parser filename) (default-state) return 'not 'not))))))
+    (format-result
+     (call/cc
+      (lambda (return)
+       (M_state (parser filename) (default-state) return 'not 'not 'not))))))
 
 ;format result to show true and false atoms
 (define format-result  ;;This method is bypassed by call/cc
@@ -56,22 +57,27 @@
 
 ;state
 (define M_state
-  (lambda (expression state return break continue)
+  (lambda (expression state return break continue throw)
     (cond
       [(null? expression)                  state]
       ((eq? (operator expression) 'var)    (add-variable expression state return))
       ((eq? (operator expression) '=)      (assign-statement expression state return))
-      ((eq? (operator expression) 'if)     (if-statement expression state return break continue))
-      ((eq? (operator expression) 'while)  (while-statement expression state return break continue))
-      ((eq? (operator expression) 'begin)  (pop (M_state (cdr expression) (enter-block state) return break continue)))
-      ((eq? (operator expression) 'return) (return (M_state (cdr expression) state return break continue)))
-      ((eq? (operator expression) 'break)  (break (pop state))) ;;should return error if break == 'not
+      ((eq? (operator expression) 'if)     (if-statement expression state return break continue throw))
+      ((eq? (operator expression) 'while)  (while-statement expression state return break continue throw))
+      ((eq? (operator expression) 'begin)  (pop (M_state (cdr expression) (enter-block state) return break continue throw)))
+      ((eq? (operator expression) 'return) (return (M_state (cdr expression) state return break continue throw)))
+      ((eq? (operator expression) 'break)  (if (eq? break 'not)
+                                               (error "break not in while")
+                                               (break (pop state))));;should return error if break == 'not
       ((eq? (operator expression) 'continue) (continue (pop state)))
+      ((eq? (operator expression) 'try)    (interpret-try expression state return break continue throw))
+      ((eq? (operator expression) 'throw)  (throw (cadr expression) state))
       ((list? (operator expression))       (M_state (cdr expression)
-                                                    (M_state (car expression) state return break continue)
+                                                    (M_state (car expression) state return break continue throw)
                                                      return
                                                      break
-                                                     continue)) ;;added
+                                                     continue
+                                                     throw))
       (else                                (M_value expression state return)))))
 ;default state
 (define default-state
@@ -175,11 +181,11 @@
 
 ;if statement
 (define if-statement
-  (lambda (expression state return break continue)
-    (if (M_state (conditional expression) state return break continue)
-        (M_state (then-statement expression) state return break continue)
+  (lambda (expression state return break continue throw)
+    (if (M_state (conditional expression) state return break continue throw)
+        (M_state (then-statement expression) state return break continue throw)
         (if (not (null? (cdddr expression)))
-            (M_state (optional-else-statement expression) state return break continue)
+            (M_state (optional-else-statement expression) state return break continue throw)
             state))))
 
 ;the condition of the if-statement or while-statement
@@ -199,17 +205,22 @@
 
 ;while statement interior
 (define while-call
-  (lambda (expression state return break continue)
+  (lambda (expression state return break continue throw)
     (if (M_value (conditional expression) state return)
-        (while-call expression (call/cc (lambda (k) (M_state (body-statement expression) state return break k))) return break continue)
+        (while-call expression
+                    (call/cc (lambda (k) (M_state (body-statement expression) state return break k throw)))
+                    return
+                    break
+                    continue
+                    throw)
         state)))
 
 ;while statement starter
 (define while-statement
-  (lambda (expression state return break continue)    
+  (lambda (expression state return break continue throw)    
     (call/cc
      (lambda (k)
-       (while-call expression state return k continue)))))
+       (while-call expression state return k continue throw)))))
 
 ;while body statement
 (define body-statement
@@ -246,7 +257,7 @@
 ;comparison-statement
 (define comparison-statement
   (lambda (function expression state return)
-    (function (M_state (term1 expression) state return 'not 'not) (M_state (term2 expression) state return 'not 'not))))
+    (function (M_state (term1 expression) state return 'not 'not 'not) (M_state (term2 expression) state return 'not 'not 'not))))
 
 
 ;and
@@ -264,17 +275,79 @@
   (lambda (expression state return)
     (not (M_value (term1 expression) state return))))
 
-;try block statement
-(define try-catch
-  (lambda (expression state return)
-    (state)))
+; Interpret a try-catch-finally block
+
+;Known issue - Does not give correct error if throw in catch block
+
+; Create a continuation for the throw.  If there is no catch, it has to interpret the finally block, and once that completes throw the exception.
+;   Otherwise, it interprets the catch block with the exception bound to the thrown value and interprets the finally block when the catch is done
+(define create-throw-catch-continuation
+  (lambda (catch-statement environment return break continue throw jump finally-block)
+    (cond
+      ((null? catch-statement) (lambda (ex env) (throw ex (M_state finally-block env return break continue throw)))) 
+      ((not (eq? 'catch (car catch-statement))) (error "Incorrect catch statement"))
+      (else (lambda (ex env)
+              (jump (M_state (cdr finally-block)
+                                     (pop
+                                      (M_state 
+                                                 (caddr catch-statement) 
+                                                 (add-variable (throw-variable-declaration (caadr catch-statement) ex)
+                                                               (push (empty-layer) env)
+                                                               return)
+                                                 return 
+                                                 (lambda (env2) (break (pop env2))) 
+                                                 (lambda (env2) (continue (pop env2))) 
+                                                 (lambda (v env2) (throw v (pop env2)))))
+                                     return break continue throw)))))))
+
+; To interpret a try block, we must adjust  the return, break, continue continuations to interpret the finally block if any of them are used.
+;  We must create a new throw continuation and then interpret the try block with the new continuations followed by the finally block with the old continuations
+(define interpret-try
+  (lambda (statement environment return break continue throw)
+    (call/cc
+     (lambda (jump)
+       (let* ((finally-block (make-finally-block (finally statement)))
+              (try-block (make-try-block (try statement)))
+              (new-return (lambda (v) (begin (M_state finally-block environment return break continue throw) (return v))))
+              (new-break (lambda (env) (break (M_state finally-block env return break continue throw))))
+              (new-continue (lambda (env) (continue (M_state finally-block env return break continue throw))))
+              (new-throw (create-throw-catch-continuation (catch statement) environment return break continue throw jump finally-block)))
+         (M_state finally-block
+                          (M_state try-block environment new-return new-break new-continue new-throw)
+                          return break continue throw))))))
+
+; helper methods so that I can reuse the interpret-block method on the try and finally blocks
+(define make-try-block
+  (lambda (try-statement)
+    (cons 'begin try-statement)))
+
+(define make-finally-block
+  (lambda (finally-statement)
+    (cond
+      ((null? finally-statement) '(begin))
+      (else (cons 'begin (cadr finally-statement))))))
+
+;try block
+(define try
+  (lambda (expression)
+    (cadr expression)))
 
 ;catch block
 (define catch
   (lambda (expression)
-    (cdr expression)))
+    (caddr expression)))
+
+;error
+(define error-block
+  (lambda (expression)
+    (cadr (catch expression))))
 
 ;finally block
 (define finally
   (lambda (expression)
-    (cddr expression)))
+    (cadddr expression)))
+
+;format throw variable declaration
+(define throw-variable-declaration
+  (lambda (name value)
+    (list '= name value)))

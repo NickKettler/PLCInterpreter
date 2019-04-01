@@ -70,7 +70,7 @@
                                                (error "break not in while")
                                                (break (pop state))));;should return error if break == 'not
       ((eq? (operator expression) 'continue) (continue (pop state)))
-      ((eq? (operator expression) 'try)    (try-catch expression state return break continue throw))
+      ((eq? (operator expression) 'try)    (interpret-try expression state return break continue throw))
       ((list? (operator expression))       (M_state (cdr expression)
                                                     (M_state (car expression) state return break continue throw)
                                                      return
@@ -301,17 +301,18 @@
 (define create-throw-catch-continuation
   (lambda (catch-statement environment return break continue throw jump finally-block)
     (cond
-      ((null? catch-statement) (lambda (ex env) (throw ex (interpret-block finally-block env return break continue throw)))) 
-      ((not (eq? 'catch (statement-type catch-statement))) (myerror "Incorrect catch statement"))
+      ((null? catch-statement) (lambda (ex env) (throw ex (M_state finally-block env return break continue throw)))) 
+      ((not (eq? 'catch (car catch-statement))) (error "Incorrect catch statement"))
       (else (lambda (ex env)
-              (jump (interpret-block finally-block
-                                     (pop-frame (interpret-statement-list 
-                                                 (get-body catch-statement) 
-                                                 (insert (catch-var catch-statement) ex (push-frame env))
+              (jump (M_state (cdr finally-block)
+                                     (pop
+                                      (M_state 
+                                                 (caddr catch-statement) 
+                                                 (add-variable (caadr catch-statement) ex (push env))
                                                  return 
-                                                 (lambda (env2) (break (pop-frame env2))) 
-                                                 (lambda (env2) (continue (pop-frame env2))) 
-                                                 (lambda (v env2) (throw v (pop-frame env2)))))
+                                                 (lambda (env2) (break (pop env2))) 
+                                                 (lambda (env2) (continue (pop env2))) 
+                                                 (lambda (v env2) (throw v (pop env2)))))
                                      return break continue throw)))))))
 
 ; To interpret a try block, we must adjust  the return, break, continue continuations to interpret the finally block if any of them are used.
@@ -320,14 +321,14 @@
   (lambda (statement environment return break continue throw)
     (call/cc
      (lambda (jump)
-       (let* ((finally-block (make-finally-block (get-finally statement)))
-              (try-block (make-try-block (get-try statement)))
-              (new-return (lambda (v) (begin (interpret-block finally-block environment return break continue throw) (return v))))
-              (new-break (lambda (env) (break (interpret-block finally-block env return break continue throw))))
-              (new-continue (lambda (env) (continue (interpret-block finally-block env return break continue throw))))
-              (new-throw (create-throw-catch-continuation (get-catch statement) environment return break continue throw jump finally-block)))
-         (interpret-block finally-block
-                          (interpret-block try-block environment new-return new-break new-continue new-throw)
+       (let* ((finally-block (make-finally-block (finally statement)))
+              (try-block (make-try-block (try statement)))
+              (new-return (lambda (v) (begin (M_state finally-block environment return break continue throw) (return v))))
+              (new-break (lambda (env) (break (M_state finally-block env return break continue throw))))
+              (new-continue (lambda (env) (continue (M_state finally-block env return break continue throw))))
+              (new-throw (create-throw-catch-continuation (caddr statement) environment return break continue throw jump finally-block)))
+         (M_state finally-block
+                          (M_state try-block environment new-return new-break new-continue new-throw)
                           return break continue throw))))))
 
 ; helper methods so that I can reuse the interpret-block method on the try and finally blocks
@@ -339,7 +340,7 @@
   (lambda (finally-statement)
     (cond
       ((null? finally-statement) '(begin))
-      ((not (eq? (statement-type finally-statement) 'finally)) (myerror "Incorrectly formatted finally block"))
+      ((not (eq? (car finally-statement) 'finally)) (error "Incorrectly formatted finally block"))
       (else (cons 'begin (cadr finally-statement))))))
 
 ;try block

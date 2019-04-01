@@ -71,6 +71,7 @@
                                                (break (pop state))));;should return error if break == 'not
       ((eq? (operator expression) 'continue) (continue (pop state)))
       ((eq? (operator expression) 'try)    (interpret-try expression state return break continue throw))
+      ((eq? (operator expression) 'throw)  (throw (cadr expression) state))
       ((list? (operator expression))       (M_state (cdr expression)
                                                     (M_state (car expression) state return break continue throw)
                                                      return
@@ -308,7 +309,9 @@
                                      (pop
                                       (M_state 
                                                  (caddr catch-statement) 
-                                                 (add-variable (caadr catch-statement) ex (push env))
+                                                 (add-variable (throw-variable-declaration (caadr catch-statement) ex)
+                                                               (push (empty-layer) env)
+                                                               return)
                                                  return 
                                                  (lambda (env2) (break (pop env2))) 
                                                  (lambda (env2) (continue (pop env2))) 
@@ -361,3 +364,8 @@
 (define finally
   (lambda (expression)
     (cadddr expression)))
+
+;format throw variable declaration
+(define throw-variable-declaration
+  (lambda (name value)
+    (list '= name value)))

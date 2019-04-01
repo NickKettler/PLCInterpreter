@@ -60,19 +60,20 @@
   (lambda (expression state return break continue throw)
     (cond
       [(null? expression)                  state]
-      ((eq? (operator expression) 'var)    (add-variable expression state return))
-      ((eq? (operator expression) '=)      (assign-statement expression state return))
-      ((eq? (operator expression) 'if)     (if-statement expression state return break continue throw))
-      ((eq? (operator expression) 'while)  (while-statement expression state return break continue throw))
-      ((eq? (operator expression) 'begin)  (pop (M_state (cdr expression) (enter-block state) return break continue throw)))
-      ((eq? (operator expression) 'return) (return (M_state (cdr expression) state return break continue throw)))
-      ((eq? (operator expression) 'break)  (if (eq? break 'not)
+      ((eq? (operator expression) 'var)      (add-variable expression state return))
+      ((eq? (operator expression) '=)        (assign-statement expression state return))
+      ((eq? (operator expression) 'if)       (if-statement expression state return break continue throw))
+      ((eq? (operator expression) 'while)    (while-statement expression state return break continue throw))
+      ((eq? (operator expression) 'begin)    (pop (M_state (cdr expression) (enter-block state) return break continue throw)))
+      ((eq? (operator expression) 'return)   (return (M_state (cdr expression) state return break continue throw)))
+      ((eq? (operator expression) 'break)    (if (eq? break 'not)
                                                (error "break not in while")
                                                (break (pop state))));;should return error if break == 'not
       ((eq? (operator expression) 'continue) (continue (pop state)))
-      ((eq? (operator expression) 'try)    (interpret-try expression state return break continue throw))
-      ((eq? (operator expression) 'throw)  (throw (cadr expression) state))
-      ((list? (operator expression))       (M_state (cdr expression)
+      ((eq? (operator expression) 'try)      (interpret-try expression state return break continue throw))
+      ((eq? (operator expression) 'throw)    (throw (cadr expression) state))
+      ((eq? (operator expression) 'function) (add-function (function-name expression) (closure-format expression state return) state return))
+      ((list? (operator expression))         (M_state (cdr expression)
                                                     (M_state (car expression) state return break continue throw)
                                                      return
                                                      break
@@ -123,6 +124,37 @@
         (modify-top (list (append (top-names state)
                                   (list (term1 expression))) (append (top-values state)
                                                                      (list (M_value (term2 expression) state return)))) state))))
+
+;add function to environment
+(define add-function
+  (lambda (name closure state return)
+    (modify-top (list (append (top-names state)
+                              (list name))
+                      (append (top-values state)
+                              (list closure))) state)))
+
+
+;closure formatting
+(define closure-format
+  (lambda (expression state return)
+    (list (param-list expression) (function-body expression) state)))
+
+;helper functions for add-function
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;name
+(define function-name
+  (lambda (expression)
+    (cadr expression)))
+
+;parameters
+(define param-list
+  (lambda (expression)
+    (caddr expression)))
+
+;function body
+(define function-body
+  (lambda (expression)
+    (cadddr expression)))
 
 ;find a variable's value
 (define retrieve-value

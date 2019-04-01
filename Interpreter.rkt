@@ -166,6 +166,20 @@
       ((and (eq? (car (top-names state)) expression) (eq? (car (top-values state)) '?))       (error "No assigned value"))
       (else (retrieve-value expression (cons (list (cdr (top-names state)) (cdr (top-values state))) (cdr state)) return)))))
 
+;find a functions's instructions
+(define retrieve-function
+  (lambda (expression state return)
+    (cond
+      ((and (null? (top-names state)) (null? (pop state)))  (error "undeclared function"))
+      ((null? (top-names state))                            (retrieve-function expression (pop state) return))
+      (eq? (car (top-names state)) expression)              (car (top-values state))
+      (else                                                 (retrieve-function
+                                                             expression
+                                                             (cons (list (cdr (top-names state))
+                                                                         (cdr (top-values state)))
+                                                                   (cdr state))
+                                                             return)))))
+
 ;assignment
 (define assign-statement
   (lambda (expression state return)

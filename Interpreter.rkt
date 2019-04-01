@@ -5,8 +5,8 @@
 ;EECS 345
 
 
-;load simpleParser
-(require "simpleParser.rkt")
+;load functionParser
+(require "functionParser.rkt")
 
 ;returns the value of the code in the filename
 (define interpret

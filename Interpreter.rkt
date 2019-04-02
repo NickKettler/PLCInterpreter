@@ -29,6 +29,12 @@
   (lambda (expression state return)
     (cond      
       ((number? (operator expression))                               (operator expression))
+      ((eq? (operator expression) 'funcall)                          (function-call (function-name expression)
+                                                                                    (param-list expression)
+                                                                                    return
+                                                                                    break
+                                                                                    continue
+                                                                                    throw))
       ((eq? (operator expression) '+)                                (math-statement + expression state return))
       ((and (eq? (operator expression) '-) (null? (cddr expression)) (unary-statement expression state return)))
       ((eq? (operator expression) '-)                                (math-statement - expression state return))
@@ -73,7 +79,6 @@
       ((eq? (operator expression) 'try)      (interpret-try expression state return break continue throw))
       ((eq? (operator expression) 'throw)    (throw (cadr expression) state))
       ((eq? (operator expression) 'function) (add-function (function-name expression) (closure-format expression state return) state return))
-      ((eq? (operator expression) 'funcall)  (function-call (function-name expression) (param-list expression) return break continue throw))
       ((list? (operator expression))         (M_state (cdr expression)
                                                     (M_state (car expression) state return break continue throw)
                                                      return

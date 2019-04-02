@@ -73,6 +73,7 @@
       ((eq? (operator expression) 'try)      (interpret-try expression state return break continue throw))
       ((eq? (operator expression) 'throw)    (throw (cadr expression) state))
       ((eq? (operator expression) 'function) (add-function (function-name expression) (closure-format expression state return) state return))
+      ((eq? (operator expression) 'funcall)  (function-call (function-name expression) (param-list expression) return break continue throw))
       ((list? (operator expression))         (M_state (cdr expression)
                                                     (M_state (car expression) state return break continue throw)
                                                      return
@@ -133,12 +134,19 @@
                       (append (top-values state)
                               (list closure))) state)))
 
-
 ;closure formatting
 (define closure-format
   (lambda (expression state return)
     (list (param-list expression) (function-body expression) state)))
 
+;function-call
+(define function-call
+ (lambda (name params state return break continue throw)
+    (call/cc
+     (lambda (call-return)
+       (let ([new-state (add-parameters (car (retrieve-function name state return)) params (push (state)))])
+         (M_state (function-code (retrieve-function name state return)) new-state call-return break continue throw))))))
+                
 ;helper functions for add-function
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;name
@@ -155,6 +163,27 @@
 (define function-body
   (lambda (expression)
     (cadddr expression)))
+
+;executed function code
+(define function-code
+  (lambda expression
+    (caddr expression)))
+
+;add variables defined by function params
+(define add-parameters
+  (lambda (names values state)
+    (cond
+      ((null? names) state)
+      ((not (eq? (length names) (length values))) (error "incorrect number of parameters"))
+      (else (add-parameters (cdr names) (cdr values) (add-variable (format-variable-declaration (car names) (car values))
+                                                                   state
+                                                                   'not))))))
+
+(define add-states
+  (lambda (to-add current)
+    (if (null? to-add)
+      current
+      (add-states (cdr to-add) (add-parameters (top-names to-add) (top-values to-add) current))))) 
 
 ;find a variable's value
 (define retrieve-value
@@ -323,7 +352,7 @@
                                      (pop
                                       (M_state 
                                                  (caddr catch-statement) 
-                                                 (add-variable (throw-variable-declaration (caadr catch-statement) ex)
+                                                 (add-variable (format-variable-declaration (caadr catch-statement) ex)
                                                                (push (empty-layer) env)
                                                                return)
                                                  return 
@@ -380,6 +409,6 @@
     (cadddr expression)))
 
 ;format throw variable declaration
-(define throw-variable-declaration
+(define format-variable-declaration
   (lambda (name value)
     (list '= name value)))

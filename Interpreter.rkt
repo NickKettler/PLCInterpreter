@@ -155,7 +155,7 @@
  (lambda (name params state return break continue throw)
     (call/cc
      (lambda (call-return)
-       (let ([new-state (add-parameters (car (retrieve-function name state return)) params (enter-block state))])
+       (let ([new-state (add-parameters (car (retrieve-function name state return)) params (enter-block state) state)])
          (M_state (function-code (retrieve-function name state return)) new-state call-return break continue throw))))))
                 
 ;helper functions for add-function
@@ -183,23 +183,34 @@
 ;Returns inputs for a called function
 (define function-inputs
   (lambda expression
-    (caddr expression)))
+    (if (null? (cddar expression))
+        '()
+        (cddar expression))))
 
 ;add variables defined by function params
 (define add-parameters
-  (lambda (names values state)
+  (lambda (names values function-state original-state)
     (cond
-      ((null? names) state)
+      ((null? names)                              function-state)
       ((not (eq? (length names) (length values))) (error "incorrect number of parameters"))
-      (else (add-parameters (cdr names) (cdr values) (add-variable (format-variable-declaration (car names) (car values))
-                                                                   state
-                                                                   'not))))))
+      (else                                       (add-parameters (cdr names)
+                                                                  (cdr values)
+                                                                  (add-variable
+                                                                   (format-variable-declaration (car names) (value-convert (car values) original-state))
+                                                                   function-state
+                                                                   'not)
+                                                                  original-state)))))
+
+;convert inputs to M_value of inputs
+(define value-convert
+  (lambda (value state)
+    (M_value value state 'not)))
 
 (define add-states
   (lambda (to-add current)
     (if (null? to-add)
       current
-      (add-states (cdr to-add) (add-parameters (top-names to-add) (top-values to-add) current))))) 
+      (add-states (cdr to-add) (add-parameters (top-names to-add) (top-values to-add) (enter-block current) current))))) 
 
 ;find a variable's value
 (define retrieve-value

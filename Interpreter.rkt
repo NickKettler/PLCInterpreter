@@ -59,7 +59,9 @@
                                                                       (comparison-statement > expression state return)))
       ((eq? (operator expression) '&&)                               (and-statement expression state return))
       ((eq? (operator expression) '||)                               (or-statement expression state return))
-      ((eq? (operator expression) '!)                                (not-statement expression state return))
+      ((eq? (operator expression) '!)                                (not-statement expression state return))  
+      ((eq? (operator expression) #t)                                #t)
+      ((eq? (operator expression) #f)                                #f)
       ((eq? (operator expression) 'true)                             #t)
       ((eq? (operator expression) 'false)                            #f)
       ((eq? (operator expression) 'while)                            (while-statement expression state return)) ;;remove

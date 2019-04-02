@@ -35,11 +35,12 @@
     (cond      
       ((number? (operator expression))                               (operator expression))
       ((eq? (operator expression) 'funcall)                          (function-call (function-name expression)
-                                                                                    (param-list expression)
+                                                                                    (function-inputs expression)
+                                                                                    state
                                                                                     return
-                                                                                    break
-                                                                                    continue
-                                                                                    throw))
+                                                                                    'not
+                                                                                    'not
+                                                                                    'not))
       ((eq? (operator expression) '+)                                (math-statement + expression state return))
       ((and (eq? (operator expression) '-) (null? (cddr expression)) (unary-statement expression state return)))
       ((eq? (operator expression) '-)                                (math-statement - expression state return))
@@ -178,6 +179,11 @@
 (define function-code
   (lambda expression
     (cadar expression)))
+
+;Returns inputs for a called function
+(define function-inputs
+  (lambda expression
+    (caddr expression)))
 
 ;add variables defined by function params
 (define add-parameters

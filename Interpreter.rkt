@@ -14,7 +14,7 @@
     (format-result
      (call/cc
       (lambda (return)
-       (M_state (parser filename) (default-state) return 'not 'not 'not))))))
+       (run (M_state (parser filename) (default-state) return 'not 'not 'not) return))))))
 
 ;format result to show true and false atoms
 (define format-result  ;;This method is bypassed by call/cc
@@ -23,6 +23,11 @@
       ((eq? value #t) 'true)
       ((eq? value #f) 'false)
       (else           value))))
+
+;runs the main method of a given program
+(define run
+  (lambda (state return)
+    (function-call 'main '() state return 'not 'not 'not)))
 
 ;returns the value of the expression
 (define M_value

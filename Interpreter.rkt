@@ -144,7 +144,7 @@
  (lambda (name params state return break continue throw)
     (call/cc
      (lambda (call-return)
-       (let ([new-state (add-parameters (car (retrieve-function name state return)) params (push (state)))])
+       (let ([new-state (add-parameters (car (retrieve-function name state return)) params (enter-block state))])
          (M_state (function-code (retrieve-function name state return)) new-state call-return break continue throw))))))
                 
 ;helper functions for add-function
@@ -167,7 +167,7 @@
 ;executed function code
 (define function-code
   (lambda expression
-    (caddr expression)))
+    (cadar expression)))
 
 ;add variables defined by function params
 (define add-parameters
@@ -201,7 +201,7 @@
     (cond
       ((and (null? (top-names state)) (null? (pop state)))  (error "undeclared function"))
       ((null? (top-names state))                            (retrieve-function expression (pop state) return))
-      (eq? (car (top-names state)) expression)              (car (top-values state))
+      ((eq? (car (top-names state)) expression)              (car (top-values state)))
       (else                                                 (retrieve-function
                                                              expression
                                                              (cons (list (cdr (top-names state))

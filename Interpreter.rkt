@@ -6,7 +6,7 @@
 
 
 ;load functionParser
-(require "functionParser.rkt")
+(require "classParser.rkt")
 
 ;returns the value of the code in the filename
 (define interpret

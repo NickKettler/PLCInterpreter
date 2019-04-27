@@ -74,6 +74,7 @@
   (lambda (expression state return break continue throw)
     (cond
       [(null? expression)                  state]
+      ((eq? (operator expression) 'class)    (add-class expression state))
       ((eq? (operator expression) 'var)      (add-variable expression state return))
       ((eq? (operator expression) '=)        (assign-statement expression state return))
       ((eq? (operator expression) 'if)       (if-statement expression state return break continue throw))
@@ -458,3 +459,34 @@
 (define format-variable-declaration
   (lambda (name value)
     (list '= name value)))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; THIS SECTION HANDLES CLASSES      ;;
+
+(define add-class
+  (lambda (expression state)
+    (let* ((newnames (append (class-names state) (class-name expression)))
+           (newclosures (append (class-closures state) (list (superclass expression) (field expression))))
+           (newclasslevel (list newnames newclosures)))
+      (cons (newclasslevel (cdr state))))))
+
+(define class-names
+  (lambda (state)
+    (caar state)))
+
+(define class-closures
+  (lambda (state)
+    (cadar state)))
+                      
+(define class-name
+  (lambda (expression)
+  (cadr expression)))
+
+(define superclass
+  (lambda (expression)
+    (caddr expression)))
+
+(define fields
+  (lambda (expression)
+  (cadddr expression)))
+  

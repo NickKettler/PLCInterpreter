@@ -86,7 +86,10 @@
       ((eq? (operator expression) 'continue) (continue (pop state)))
       ((eq? (operator expression) 'try)      (interpret-try expression state return break continue throw))
       ((eq? (operator expression) 'throw)    (throw (cadr expression) state))
-      ((eq? (operator expression) 'function) (add-function (function-name expression) (closure-format expression state return) state return))
+      ((eq? (operator expression) 'function) (add-function (function-name expression)
+                                                           (closure-format expression state return)
+                                                           state
+                                                           return))
       ((list? (operator expression))         (M_state (cdr expression)
                                                     (M_state (car expression) state return break continue throw)
                                                      return

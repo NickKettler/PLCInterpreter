@@ -75,6 +75,7 @@
     (cond
       [(null? expression)                  state]
       ((eq? (operator expression) 'class)    (add-class expression state))
+      ((eq? (operator expression) 'dot)      (dot-function expression state return break continue throw))
       ((eq? (operator expression) 'var)      (add-variable expression state return))
       ((eq? (operator expression) '=)        (assign-statement expression state return))
       ((eq? (operator expression) 'if)       (if-statement expression state return break continue throw))
@@ -466,7 +467,7 @@
 (define add-class
   (lambda (expression state)
     (let* ((newnames (append (class-names state) (class-name expression)))
-           (newclosures (append (class-closures state) (list (superclass expression) (field expression))))
+           (newclosures (append (class-closures state) (list (superclass expression) (fields expression))))
            (newclasslevel (list newnames newclosures)))
       (cons (newclasslevel (cdr state))))))
 
@@ -489,4 +490,41 @@
 (define fields
   (lambda (expression)
   (cadddr expression)))
-  
+
+(define dot-function
+  (lambda (expression state return break continue throw)
+    (get-function (caddr expression) (retrieve-instance (class-name expression) (cdr state)))))
+
+(define f-name
+  (lambda (expression)
+    (caddr expression)))
+
+(define get-function
+  (lambda (name closure)
+    ((cond
+       ((equals (car (func-names closure)) names) (car (func-defs closure)))
+       (else                                      (get-function name
+                                                                (list
+                                                                 (cdr (func-names closure))
+                                                                 (cdr (func-defs closure)))))))))
+
+(define func-names
+  (lambda (closure)
+    (car closure)))
+
+(define func-defs
+  (lambda (closure)
+    (cadr closure)))
+     
+(define retrieve-instance
+  (lambda (name state)
+    ((cond
+      ((and (null? (top-names state)) (null? (pop state)))  (error "undeclared instance"))
+      ((null? (top-names state))                            (retrieve-instance name (pop state) return))
+      ((eq? (car (top-names state)) name)              (car (top-values state)))
+      (else                                                 (retrieve-instance
+                                                             name
+                                                             (cons (list (cdr (top-names state))
+                                                                         (cdr (top-values state)))
+                                                                   (cdr state))
+                                                             return)))))

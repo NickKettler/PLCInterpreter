@@ -74,6 +74,7 @@
   (lambda (expression state return break continue throw)
     (cond
       [(null? expression)                  state]
+      ((eq? (operator expression) 'class)    (add-class expression state))
       ((eq? (operator expression) 'var)      (add-variable expression state return))
       ((eq? (operator expression) '=)        (assign-statement expression state return))
       ((eq? (operator expression) 'if)       (if-statement expression state return break continue throw))
@@ -163,16 +164,34 @@
        (let ([new-state (add-parameters (car (retrieve-function name state return)) params (enter-block state) state)])
          (M_state (function-code (retrieve-function name state return)) new-state call-return break continue throw))))))
 
+;Calls the main method of a given class
 (define call-main
-  (lambda (class params state return break continue throw) ;Get function call to call the correct function from the correct class
+  (lambda (class params state return break continue throw) 
     (call/cc
      (lambda (call-return)
-       (let ([new-state (add-parameters (car (retrieve-function name state return)) params (enter-block state) state)])
-         (M_state (get-main-of class state return break continue throw) new-state call-return break continue throw))))))
+       (let ([new-state (add-parameters (car (retrieve-function 'main state return)) params (enter-block state) state)])
+         (M_state (get-main-of class state) new-state call-return break continue throw))))))
 
-;;(define get-main-of
-;;  (lambda (class state return break continue throw)
-;;    (
+;;finds the closure of a class in the enviroment
+(define get-closure-of
+  (lambda (class state)
+    (search-closure-for class (class-level state))))
+
+;;finds a specific class closure 
+(define search-closure-for
+  (lambda (name classes)
+    (cond
+      [(or (null? (caar classes)) (null? (cadr classes))) error "Could not find specified class"]
+      [(eq? (caar classes) name) (cadr classes)]
+      [else search-closure-for(name (list (cdar classes) (cdadr classes)))])))
+
+;;retrieves the main method of a given class
+(define get-main-of
+  (lambda (class state)
+    retrieve-class-function 'main (get-closure-of class state)))
+
+
+       
                 
 ;helper functions for add-function
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -239,7 +258,7 @@
       (else (retrieve-value expression (cons (list (cdr (top-names state)) (cdr (top-values state))) (cdr state)) return)))))
 
 ;find a functions's instructions
-(define retrieve-function ;
+(define retrieve-function 
   (lambda (expression state return)
     (cond
       ((and (null? (top-names state)) (null? (pop state)))  (error "undeclared function"))
@@ -251,7 +270,34 @@
                                                                          (cdr (top-values state)))
                                                                    (cdr state))
                                                              return)))))
+;Finds a specific function from a class closure   
+(define retrieve-class-function
+  (lambda (name closure)
+    (cond
+      ((or (null? (closure-function-names closure))
+            (null? (closure-function-bodies closure)))      (error "undeclared function"))
+      ((eq? (car (closure-function-names closure)) name)    (car (closure-function-bodies closure)))
+      (else                                                 (retrieve-class-function
+                                                             name
+                                                             (list (cdr (closure-function-names closure))
+                                                                   (cdr (closure-function-bodies closure))))))))
 
+;;the functions of a closure
+(define closure-functions
+  (lambda (closure)
+    (caddr closure)))
+
+;;the function names of a closure
+(define closure-function-names
+  (lambda (closure)
+    car (closure-functions closure)))
+
+;;the function body of a closure
+(define closure-function-bodies
+  (lambda (closure)
+    cadr (closure-functions closure)))
+
+    
 ;assignment
 (define assign-statement
   (lambda (expression state return)
@@ -469,3 +515,38 @@
 (define format-variable-declaration
   (lambda (name value)
     (list '= name value)))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; THIS SECTION HANDLES CLASSES      ;;
+
+(define add-class
+  (lambda (expression state)
+    (let* ((newnames (append (class-names state) (class-name expression)))
+           (newclosures (append (class-closures state) (list (superclass expression) (fields expression))))
+           (newclasslevel (list newnames newclosures)))
+      (cons (newclasslevel (cdr state))))))
+
+(define class-level
+  (lambda (state)
+    (car state)))
+
+(define class-names
+  (lambda (state)
+    (caar state)))
+
+(define class-closures
+  (lambda (state)
+    (cadar state)))
+                      
+(define class-name
+  (lambda (expression)
+  (cadr expression)))
+
+(define superclass
+  (lambda (expression)
+    (caddr expression)))
+
+(define fields
+  (lambda (expression)
+  (cadddr expression)))
+  

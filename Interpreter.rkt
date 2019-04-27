@@ -10,11 +10,11 @@
 
 ;returns the value of the code in the filename
 (define interpret
-  (lambda (filename)
+  (lambda (filename run-class)
     (format-result
      (call/cc
       (lambda (return)
-       (run (M_state (parser filename) (default-state) return 'not 'not 'not) return))))))
+       (run run-class (M_state (parser filename) (default-state) return 'not 'not 'not) return))))))
 
 ;format result to show true and false atoms
 (define format-result  ;;This method is bypassed by call/cc
@@ -26,8 +26,8 @@
 
 ;runs the main method of a given program
 (define run
-  (lambda (state return)
-    (function-call 'main '() state return 'not 'not 'not)))
+  (lambda (state class return)
+    (function-call class 'main '() state return 'not 'not 'not)))
 
 ;returns the value of the expression
 (define M_value
@@ -157,11 +157,22 @@
 
 ;function-call
 (define function-call
- (lambda (name params state return break continue throw)
+ (lambda (name params state return break continue throw) 
     (call/cc
      (lambda (call-return)
        (let ([new-state (add-parameters (car (retrieve-function name state return)) params (enter-block state) state)])
          (M_state (function-code (retrieve-function name state return)) new-state call-return break continue throw))))))
+
+(define call-main
+  (lambda (class params state return break continue throw) ;Get function call to call the correct function from the correct class
+    (call/cc
+     (lambda (call-return)
+       (let ([new-state (add-parameters (car (retrieve-function name state return)) params (enter-block state) state)])
+         (M_state (get-main-of class state return break continue throw) new-state call-return break continue throw))))))
+
+;;(define get-main-of
+;;  (lambda (class state return break continue throw)
+;;    (
                 
 ;helper functions for add-function
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -218,7 +229,7 @@
       (add-states (cdr to-add) (add-parameters (top-names to-add) (top-values to-add) (enter-block current) current))))) 
 
 ;find a variable's value
-(define retrieve-value
+(define retrieve-value ;Will need to check for class?
   (lambda (expression state return)
     (cond
       ((and (null? (top-names state)) (null? (pop state)))                                    (error "undeclared variable"))
@@ -228,7 +239,7 @@
       (else (retrieve-value expression (cons (list (cdr (top-names state)) (cdr (top-values state))) (cdr state)) return)))))
 
 ;find a functions's instructions
-(define retrieve-function
+(define retrieve-function ;
   (lambda (expression state return)
     (cond
       ((and (null? (top-names state)) (null? (pop state)))  (error "undeclared function"))

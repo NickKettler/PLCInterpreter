@@ -14,7 +14,7 @@
     (format-result
      (call/cc
       (lambda (return)
-       (run run-class (M_state (parser filename) (default-state) return 'not 'not 'not) return))))))
+       (run (M_state (parser filename) (default-state) return 'not 'not 'not) run-class return))))))
 
 ;format result to show true and false atoms
 (define format-result  ;;This method is bypassed by call/cc
@@ -27,7 +27,7 @@
 ;runs the main method of a given program
 (define run
   (lambda (state class return)
-    (function-call class 'main '() state return 'not 'not 'not)))
+    (call-main class '() state return 'not 'not 'not)))
 
 ;returns the value of the expression
 (define M_value
@@ -99,10 +99,11 @@
                                                      continue
                                                      throw))
       (else                                (M_value expression state return)))))
+
 ;default state
 (define default-state
   (lambda ()
-    (list (empty-layer))))
+    (list (empty-layer) (empty-layer))))
 
 ;empty layer
 (define empty-layer
@@ -112,12 +113,14 @@
 ;pop layer
 (define pop
   (lambda (state)
-    (cdr state)))
+    (if (null? (cddr state))
+        (list (car state))
+        (list (car state) (cddr state)))))
 
 ;push layer
 (define push
   (lambda (layer state)
-    (cons layer state)))
+    (cons (car state) (cons layer (cdr state)))))
 
 ;modify layer
 ;Takes a state and a layer and returns the new state that is the result of the top layer being replaced by the input layer
@@ -327,22 +330,22 @@
 ;state names                                    
 (define top-names
   (lambda (state)
-    (caar state)))
+    (caadr state)))
 
 ;top layer
 (define top-layer
   (lambda (state)
-    (car state)))
+    (cadr state)))
 
 ;lower layers
 (define lower-layers
   (lambda (state)
-    (cdr state)))
+    (cddr state)))
 
 ;state values
 (define top-values
   (lambda (state)
-    (cadar state)))
+    (cadadr state)))
 
 ;if statement
 (define if-statement

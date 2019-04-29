@@ -559,7 +559,11 @@
 
 (define create-instance
  (lambda (expression state)
-   (M_state (find-class (class-to-create expression) (class-level state)) '((()())(()())))))
+   (M_state (find-class (class-to-create expression) (class-level state)) '((()())(()())) return )))
+
+(define default-closure
+  (lambda ()
+    '((()())(()()))))
 
 (define class-to-create
   (lambda (expression)

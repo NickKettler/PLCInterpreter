@@ -562,7 +562,7 @@
 (define get-function
   (lambda (name closure)
     ((cond
-       ((equals (car (func-names closure)) names) (car (func-defs closure)))
+       ((eq? (car (func-names closure)) name) (car (func-defs closure)))
        (else                                      (get-function name
                                                                 (list
                                                                  (cdr (func-names closure))
@@ -578,13 +578,12 @@
      
 (define retrieve-instance
   (lambda (name state)
-    ((cond
+    (cond
       ((and (null? (top-names state)) (null? (pop state)))  (error "undeclared instance"))
-      ((null? (top-names state))                            (retrieve-instance name (pop state) return))
+      ((null? (top-names state))                            (retrieve-instance name (pop state)))
       ((eq? (car (top-names state)) name)              (car (top-values state)))
       (else                                                 (retrieve-instance
                                                              name
                                                              (cons (list (cdr (top-names state))
                                                                          (cdr (top-values state)))
-                                                                   (cdr state))
-                                                             return)))))
+                                                                   (cdr state)))))))

@@ -14,7 +14,7 @@
     (format-result
      (call/cc
       (lambda (return)
-       (run (M_state (parser filename) (default-state) return 'not 'not 'not) run-class return))))))
+       (run (M_state (parser filename) (default-state) return 'not 'not 'not) (string->symbol run-class) return))))))
 
 ;format result to show true and false atoms
 (define format-result  ;;This method is bypassed by call/cc
@@ -252,7 +252,7 @@
       (add-states (cdr to-add) (add-parameters (top-names to-add) (top-values to-add) (enter-block current) current))))) 
 
 ;find a variable's value
-(define retrieve-value ;Will need to check for class?
+(define retrieve-value 
   (lambda (expression state return)
     (cond
       ((and (null? (top-names state)) (null? (pop state)))                                    (error "undeclared variable"))

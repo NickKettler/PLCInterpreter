@@ -27,7 +27,7 @@
 ;runs the main method of a given program
 (define run
   (lambda (state class return)
-    (function-call class 'main '() state return 'not 'not 'not)))
+    (call-main class '() state return 'not 'not 'not)))
 
 ;returns the value of the expression
 (define M_value
@@ -525,7 +525,7 @@
     (let* ((newnames (append (class-names state) (class-name expression)))
            (newclosures (append (class-closures state) (list (superclass expression) (fields expression))))
            (newclasslevel (list newnames newclosures)))
-      (cons (newclasslevel (cdr state))))))
+      (cons newclasslevel (cdr state)))))
 
 (define class-level
   (lambda (state)

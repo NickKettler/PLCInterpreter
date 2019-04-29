@@ -558,8 +558,8 @@
 ;; Create instance and helpers
 
 (define create-instance
- (lambda (expression state)
-   (M_state (find-class (class-to-create expression) (class-level state)) '((()())(()())) return )))
+ (lambda (expression state return)
+   (M_state (find-class (class-to-create expression) (class-level state)) (default-closure) return 'not 'not 'not)))
 
 (define default-closure
   (lambda ()

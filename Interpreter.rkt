@@ -522,10 +522,10 @@
 
 (define add-class
   (lambda (expression state)
-    (let* ((newnames (append (class-names state) (class-name expression)))
-           (newclosures (append (class-closures state) (list (superclass expression) (fields expression))))
+    (let* ((newnames (append (class-names state) (list (class-name expression))))
+           (newclosures (append (class-closures state) (list (list (superclass expression) (fields expression)))))
            (newclasslevel (list newnames newclosures)))
-      (cons (newclasslevel (cdr state))))))
+      (cons newclasslevel (cdr state)))))
 
 (define class-level
   (lambda (state)
@@ -550,6 +550,31 @@
 (define fields
   (lambda (expression)
   (cadddr expression)))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Create instance and helpers
+
+(define create-instance
+ (lambda (expression state)
+   (let* ((closure (M_state (find-class (class-to-create expression) (class-level state)) '((()())(()())))))
+     (closure))))
+
+(define class-to-create
+  (lambda (expression)
+    (cadr expression)))
+
+(define find-class
+ (lambda (name class-level)
+   (cond
+     ((eq? name (caar class-level)) (caadr class-level))
+     (else                          (find-class name
+                                                (list
+                                                 (cdar class-level)
+                                                 (cdadr class-level)))))))
+                                                 
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Dot-function and helpers
 
 (define dot-function
   (lambda (expression state return break continue throw)

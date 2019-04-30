@@ -592,7 +592,7 @@
 
 (define dot-function
   (lambda (expression state return break continue throw)
-    (get-function (caddr expression) (retrieve-instance (class-name expression) (cdr state)))))
+    (call-function (caddr expression) (retrieve-instance (class-name expression) (cdr state)))))
 
 (define f-name
   (lambda (expression)

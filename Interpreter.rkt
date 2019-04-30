@@ -27,7 +27,7 @@
 ;runs the main method of a given program
 (define run
   (lambda (state class return)
-    (call-main class '() state return 'not 'not 'not)))
+    (call-main class state return 'not 'not 'not)))
 
 ;returns the value of the expression
 (define M_value
@@ -172,11 +172,10 @@
 
 ;Calls the main method of a given class
 (define call-main
-  (lambda (class params state return break continue throw) 
+  (lambda (class state return break continue throw) 
     (call/cc
      (lambda (call-return)
-       (let ([new-state (add-parameters (car (retrieve-function 'main state return)) params (enter-block state) state)])
-         (M_state (get-main-of class state) new-state call-return break continue throw))))))
+        (M_state (function-code (get-main-of class state)) state call-return break continue throw)))))
 
 ;;finds the closure of a class in the enviroment
 (define get-closure-of
@@ -194,9 +193,10 @@
 ;;retrieves the main method of a given class
 (define get-main-of
   (lambda (class state)
-    retrieve-class-function 'main (get-closure-of class state)))
+    (retrieve-class-function 'main (car (get-closure-of class state)))))
 
-
+;Example initital state
+;(((A)((() ((var x 5) (var y 10) (static-function main () ((var a (new A)) (return (+ (dot a x) (dot a y)))))))))(()()))
        
                 
 ;helper functions for add-function
@@ -280,13 +280,30 @@
 (define retrieve-class-function
   (lambda (name closure)
     (cond
-      ((or (null? (closure-function-names closure))
-            (null? (closure-function-bodies closure)))      (error "undeclared function"))
-      ((eq? (car (closure-function-names closure)) name)    (car (closure-function-bodies closure)))
+      ((null? (class-contents closure))                     (error "undeclared function"))
+      ((eq? (function-name (class-content closure)) name)    (class-content closure))
       (else                                                 (retrieve-class-function
                                                              name
-                                                             (list (cdr (closure-function-names closure))
-                                                                   (cdr (closure-function-bodies closure))))))))
+                                                             (list (super-class closure)
+                                                                   (cdr (class-contents closure))))))))
+
+;;The class's super class
+(define super-class
+  (lambda (closure)
+    (car closure)))
+
+;;The class-contents (variables, functions, methods)
+(define class-contents
+  (lambda (closure)
+    (cadr closure)))
+
+;;The top content of the closure
+(define class-content
+  (lambda (closure)
+    (car (class-contents closure))))
+
+
+
 
 ;;the functions of a closure
 (define closure-functions

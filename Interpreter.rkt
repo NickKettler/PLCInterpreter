@@ -65,6 +65,7 @@
       ((eq? (operator expression) 'true)                             #t)
       ((eq? (operator expression) 'false)                            #f)
       ((eq? (operator expression) 'while)                            (while-statement expression state return)) ;;remove
+      ((eq? (operator expression) 'new)                              (create-instance expression state return))
       ((list? expression)                                            (retrieve-value (car expression) state return))
       (else                                                          (retrieve-value expression state return)))))
       
@@ -74,31 +75,32 @@
   (lambda (expression state return break continue throw)
     (cond
       [(null? expression)                  state]
-      ((eq? (operator expression) 'class)    (add-class expression state))
-      ((eq? (operator expression) 'dot)      (dot-function expression state return break continue throw))
-      ((eq? (operator expression) 'var)      (add-variable expression state return))
-      ((eq? (operator expression) '=)        (assign-statement expression state return))
-      ((eq? (operator expression) 'if)       (if-statement expression state return break continue throw))
-      ((eq? (operator expression) 'while)    (while-statement expression state return break continue throw))
-      ((eq? (operator expression) 'begin)    (pop (M_state (cdr expression) (enter-block state) return break continue throw)))
-      ((eq? (operator expression) 'return)   (return (M_state (cdr expression) state return break continue throw)))
-      ((eq? (operator expression) 'break)    (if (eq? break 'not)
-                                               (error "break not in while")
-                                               (break (pop state))));;should return error if break == 'not
-      ((eq? (operator expression) 'continue) (continue (pop state)))
-      ((eq? (operator expression) 'try)      (interpret-try expression state return break continue throw))
-      ((eq? (operator expression) 'throw)    (throw (cadr expression) state))
-      ((eq? (operator expression) 'function) (add-function (function-name expression)
-                                                           (closure-format expression state return)
-                                                           state
-                                                           return))
-      ((list? (operator expression))         (M_state (cdr expression)
-                                                    (M_state (car expression) state return break continue throw)
-                                                     return
-                                                     break
-                                                     continue
-                                                     throw))
-      (else                                (M_value expression state return)))))
+      ((eq? (operator expression) 'static-function) state)
+      ((eq? (operator expression) 'class)           (add-class expression state))
+      ((eq? (operator expression) 'dot)             (dot-function expression state return break continue throw))
+      ((eq? (operator expression) 'var)             (add-variable expression state return))
+      ((eq? (operator expression) '=)               (assign-statement expression state return))
+      ((eq? (operator expression) 'if)              (if-statement expression state return break continue throw))
+      ((eq? (operator expression) 'while)           (while-statement expression state return break continue throw))
+      ((eq? (operator expression) 'begin)           (pop (M_state (cdr expression) (enter-block state) return break continue throw)))
+      ((eq? (operator expression) 'return)          (return (M_state (cdr expression) state return break continue throw)))
+      ((eq? (operator expression) 'break)           (if (eq? break 'not)
+                                                      (error "break not in while")
+                                                      (break (pop state))));;should return error if break == 'not
+      ((eq? (operator expression) 'continue)        (continue (pop state)))
+      ((eq? (operator expression) 'try)             (interpret-try expression state return break continue throw))
+      ((eq? (operator expression) 'throw)           (throw (cadr expression) state))
+      ((eq? (operator expression) 'function)        (add-function (function-name expression)
+                                                                  (closure-format expression state return)
+                                                                  state
+                                                                  return))
+      ((list? (operator expression))                (M_state (cdr expression)
+                                                           (M_state (car expression) state return break continue throw)
+                                                           return
+                                                           break
+                                                           continue
+                                                           throw))
+      (else                                         (M_value expression state return)))))
 
 ;default state
 (define default-state
@@ -572,6 +574,7 @@
 (define find-class
  (lambda (name class-level)
    (cond
+     ((null? (caar class-level))     (error "class not found"))
      ((eq? name (caar class-level)) (caadr class-level))
      (else                          (find-class name
                                                 (list

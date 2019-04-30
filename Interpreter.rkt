@@ -542,6 +542,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; THIS SECTION HANDLES CLASSES      ;;
 
+; adds a class to the state
 (define add-class
   (lambda (expression state)
     (let* ((newnames (append (class-names state) (list (class-name expression))))
@@ -549,26 +550,32 @@
            (newclasslevel (list newnames newclosures)))
       (cons newclasslevel (cdr state)))))
 
+; gets the level on which classes are from the state
 (define class-level
   (lambda (state)
     (car state)))
 
+; names of classes
 (define class-names
   (lambda (state)
     (caar state)))
 
+; closures of classes
 (define class-closures
   (lambda (state)
     (cadar state)))
-                      
+
+; name of class
 (define class-name
   (lambda (expression)
   (cadr expression)))
 
+; name of superclass
 (define superclass
   (lambda (expression)
     (caddr expression)))
 
+; fields and methods 
 (define fields
   (lambda (expression)
   (cadddr expression)))
@@ -581,18 +588,22 @@
  (lambda (expression state return)
    (M_state (class-components (find-class (class-to-create expression) (class-level state))) (default-closure) return 'not 'not 'not)))
 
+; returns the components of said class (fields and methods)
 (define class-components
   (lambda (class)
     (cdr class)))
 
+; returns the default closure of a class
 (define default-closure
   (lambda ()
     '((()())(()()))))
 
+; name of the to-be-created class
 (define class-to-create
   (lambda (expression)
     (cadr expression)))
 
+; finds the closure of a class from the name of the class
 (define find-class
  (lambda (name class-level)
    (cond
@@ -607,39 +618,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Dot-function and helpers
 
+; this should retrieve the value of the dot-function in the closure of a given class instance
 (define dot-function
   (lambda (expression state return break continue throw)
-    (call-function (caddr expression) (retrieve-instance (class-name expression) (cdr state)))))
-
-(define f-name
-  (lambda (expression)
-    (caddr expression)))
-
-(define get-function
-  (lambda (name closure)
-    ((cond
-       ((eq? (car (func-names closure)) name) (car (func-defs closure)))
-       (else                                      (get-function name
-                                                                (list
-                                                                 (cdr (func-names closure))
-                                                                 (cdr (func-defs closure)))))))))
-
-(define func-names
-  (lambda (closure)
-    (car closure)))
-
-(define func-defs
-  (lambda (closure)
-    (cadr closure)))
-     
-(define retrieve-instance
-  (lambda (name state)
-    (cond
-      ((and (null? (top-names state)) (null? (pop state)))  (error "undeclared instance"))
-      ((null? (top-names state))                            (retrieve-instance name (pop state)))
-      ((eq? (car (top-names state)) name)              (car (top-values state)))
-      (else                                                 (retrieve-instance
-                                                             name
-                                                             (cons (list (cdr (top-names state))
-                                                                         (cdr (top-values state)))
-                                                                   (cdr state)))))))
+    (retrieve-value (cddr expression) (retrieve-value (cdr expression) state return) return)))

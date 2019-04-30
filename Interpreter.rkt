@@ -559,9 +559,14 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Create instance and helpers
 
+; returns the contents of a newly instantiated class
 (define create-instance
  (lambda (expression state return)
-   (M_state (find-class (class-to-create expression) (class-level state)) (default-closure) return 'not 'not 'not)))
+   (M_state (class-components (find-class (class-to-create expression) (class-level state))) (default-closure) return 'not 'not 'not)))
+
+(define class-components
+  (lambda (class)
+    (cdr class)))
 
 (define default-closure
   (lambda ()
@@ -575,7 +580,7 @@
  (lambda (name class-level)
    (cond
      ((null? (caar class-level))     (error "class not found"))
-     ((eq? name (caar class-level)) (caadr class-level))
+     ((eq? name (caar class-level)) (cadr class-level))
      (else                          (find-class name
                                                 (list
                                                  (cdar class-level)
